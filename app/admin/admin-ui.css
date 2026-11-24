@@ -1,0 +1,24 @@
+/* Admin / owner dashboard design tokens and small helpers (imported by app/admin/layout.tsx). */
+.dash-card { background: var(--bg-card, #fff); border: 1px solid var(--border-light, #e2e8f0); border-radius: 1rem; }
+.dash-hero { position: relative; overflow: hidden; border-radius: 1.25rem; border: 1px solid var(--border-light, #e2e8f0);
+  background:
+    radial-gradient(ellipse 60% 120% at 100% 0%, color-mix(in srgb, var(--primary) 22%, transparent), transparent 70%),
+    linear-gradient(135deg, color-mix(in srgb, var(--primary) 10%, var(--bg-card, #fff)), var(--bg-card, #fff)); }
+.dark .dash-hero { background:
+    radial-gradient(ellipse 60% 120% at 100% 0%, color-mix(in srgb, var(--primary) 30%, transparent), transparent 70%),
+    linear-gradient(135deg, color-mix(in srgb, var(--primary) 14%, #0b1210), #0b1210); }
+.stat-tint-green  { --tint: 16 185 129; } .stat-tint-purple { --tint: 139 92 246; }
+.stat-tint-amber  { --tint: 245 158 11; } .stat-tint-blue   { --tint: 59 130 246; }
+.stat-tint-rose   { --tint: 244 63 94;  } .stat-tint-teal   { --tint: 20 184 166; }
+.dash-stat { position: relative; overflow: hidden; border-radius: 1rem; border: 1px solid rgb(var(--tint) / 0.28);
+  background: linear-gradient(135deg, rgb(var(--tint) / 0.12), var(--bg-card, #fff) 70%); transition: transform .2s, box-shadow .2s; }
+.dark .dash-stat { background: linear-gradient(135deg, rgb(var(--tint) / 0.2), rgb(var(--tint) / 0.04) 80%); }
+a.dash-stat:hover { transform: translateY(-2px); box-shadow: 0 12px 30px -16px rgb(var(--tint) / 0.7); }
+.dash-chip { border-radius: 9999px; padding: .35rem .85rem; font-size: .75rem; font-weight: 600; color: var(--text-muted, #64748b); transition: background .15s, color .15s; }
+.dash-chip[aria-pressed="true"] { background: var(--primary); color: var(--brand-contrast, #fff); }
+.dash-chip:not([aria-pressed="true"]):hover { background: color-mix(in srgb, var(--primary) 14%, transparent); color: var(--text-primary, #0f172a); }
+@keyframes chart-draw { from { stroke-dasharray: 1600; stroke-dashoffset: 1600; } to { stroke-dasharray: 1600; stroke-dashoffset: 0; } }
+@keyframes chart-grow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+.chart-draw { animation: chart-draw 1s ease-out both; }
+.chart-grow { transform-box: fill-box; transform-origin: bottom; animation: chart-grow .6s ease-out both; }
+@media (prefers-reduced-motion: reduce) { .chart-draw, .chart-grow { animation: none; } a.dash-stat:hover { transform: none; } }
