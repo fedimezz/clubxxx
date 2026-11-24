@@ -102,7 +102,7 @@ export async function PATCH(
 
     const existing = await prisma.session.findFirst({
       where: { id, clubId: admin.clubId as string },
-      select: { currentBookings: true },
+      select: { currentBookings: true, weeklyPlanId: true },
     });
     if (!existing) {
       return NextResponse.json({ error: "Session introuvable" }, { status: 404 });
@@ -123,23 +123,41 @@ export async function PATCH(
       return NextResponse.json({ error: link.error }, { status: 400 });
     }
 
-    const session = await prisma.session.update({
-      where: { id },
-      data: {
-        day,
-        startTime,
-        endTime,
-        activity,
-        coach: link.coach,
-        coachId: link.coachId,
-        capacity,
-        location: location || "Main Hall",
-        description: description || null,
-      },
+    const session = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`session-slot:${existing.weeklyPlanId}:${day}`}))`;
+      const overlap = await tx.session.findFirst({
+        where: {
+          id: { not: id },
+          clubId: admin.clubId as string,
+          weeklyPlanId: existing.weeklyPlanId,
+          day,
+          startTime: { lt: endTime },
+          endTime: { gt: startTime },
+        },
+        select: { id: true },
+      });
+      if (overlap) throw new Error("SESSION_OVERLAP");
+      return tx.session.update({
+        where: { id },
+        data: {
+          day,
+          startTime,
+          endTime,
+          activity,
+          coach: link.coach,
+          coachId: link.coachId,
+          capacity,
+          location: location || "Main Hall",
+          description: description || null,
+        },
+      });
     });
 
     return NextResponse.json({ session });
   } catch (error) {
+    if (error instanceof Error && error.message === "SESSION_OVERLAP") {
+      return NextResponse.json({ error: "Une session chevauche déjà cet horaire" }, { status: 409 });
+    }
     console.error("Admin session PATCH error:", error);
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }

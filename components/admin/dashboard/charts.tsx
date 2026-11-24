@@ -101,7 +101,7 @@ function Tooltip({ point, left, top, format, unit }: { point: ChartPoint; left: 
   );
 }
 
-export function LineAreaChart({ points, format = (n) => n.toLocaleString("fr-FR"), unit, color = "var(--primary)", height = 240 }: BaseProps) {
+export function LineAreaChart({ points, format = (n) => n.toLocaleString("fr-FR"), unit, color = "var(--primary)", height = 240, showLast = false }: BaseProps & { showLast?: boolean }) {
   const id = useId().replace(/:/g, "");
   const g = useChartGeometry(points, height);
   const { active, setActive, ref, fromPointer, onKey } = useActive(points.length);
@@ -150,8 +150,22 @@ export function LineAreaChart({ points, format = (n) => n.toLocaleString("fr-FR"
         {points.length > 0 && (
           <>
             <path d={area} fill={`url(#grad-${id})`} />
-            <path d={line} fill="none" stroke={color} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" className="chart-draw" />
+            <path d={line} fill="none" stroke={color} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" className="chart-draw" style={{ filter: "drop-shadow(0 0 6px color-mix(in srgb, var(--primary) 55%, transparent))" }} />
             {points.length <= 31 && points.map((p, i) => <circle key={p.fullLabel} cx={g.x(i)} cy={g.y(p.value)} r={active === i ? 5 : 3} fill={color} stroke="var(--bg-card, #fff)" strokeWidth="1.5" />)}
+            {showLast && last && active === null && (() => {
+              const label = `${format(last.value)} ${unit}`;
+              const w = Math.round(label.length * 6.4 + 22);
+              const px = g.x(points.length - 1);
+              const py = g.y(last.value);
+              const x0 = Math.min(px - w / 2, W - PAD.right - w + 4);
+              const y0 = Math.max(2, py - 36);
+              return (
+                <g aria-hidden>
+                  <rect x={x0} y={y0} width={w} height={24} rx={12} fill="var(--bg-card, #fff)" stroke={color} strokeWidth="1.2" />
+                  <text x={x0 + w / 2} y={y0 + 16} textAnchor="middle" fontSize="11.5" fontWeight="600" fill="currentColor">{label}</text>
+                </g>
+              );
+            })()}
             {a && <line x1={g.x(active as number)} x2={g.x(active as number)} y1={PAD.top} y2={g.y(0)} stroke={color} strokeOpacity="0.35" strokeDasharray="4 4" />}
           </>
         )}
@@ -221,17 +235,29 @@ export function BarChart({ points, format = (n) => n.toLocaleString("fr-FR"), un
   );
 }
 
-/** Tiny inline trend line for stat cards. */
-export function Sparkline({ values, color = "currentColor", className = "" }: { values: number[]; color?: string; className?: string }) {
+/** Tiny inline trend line for stat cards (optional soft area under the line). */
+export function Sparkline({ values, color = "currentColor", className = "", area = false }: { values: number[]; color?: string; className?: string; area?: boolean }) {
+  const gid = useId().replace(/:/g, "");
   if (values.length < 2) return null;
   const max = Math.max(...values, 1);
   const min = Math.min(...values);
   const span = max - min || 1;
   const w = 100;
   const h = 28;
-  const d = values.map((v, i) => `${i === 0 ? "M" : "L"}${((i / (values.length - 1)) * w).toFixed(1)},${(h - 2 - ((v - min) / span) * (h - 4)).toFixed(1)}`).join(" ");
+  const pts = values.map((v, i) => [(i / (values.length - 1)) * w, h - 2 - ((v - min) / span) * (h - 4)] as const);
+  const d = pts.map(([x, y], i) => `${i === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
   return (
     <svg viewBox={`0 0 ${w} ${h}`} className={className} preserveAspectRatio="none" aria-hidden>
+      {area && (
+        <>
+          <defs>
+            <linearGradient id={`sp-${gid}`} x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0" stopColor={color} stopOpacity="0.35" /><stop offset="1" stopColor={color} stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          <path d={`${d} L${w},${h} L0,${h} Z`} fill={`url(#sp-${gid})`} />
+        </>
+      )}
       <path d={d} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
     </svg>
   );

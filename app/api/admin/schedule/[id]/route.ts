@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { requireAdmin } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
 import { formatZodError, shortTextSchema } from "@/lib/validation";
 import { getSessionDateTime } from "@/lib/session-date";
 import { resolveCoachLink } from "@/lib/coach-link";
+import { resolveReservationConfig } from "@/lib/reservation-cutoff";
 
 const DAYS = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"] as const;
 const ACTIVITIES = ["BODYBUILDING", "FITNESS", "CARDIO", "CROSSFIT", "YOGA", "PILATES", "BOXE", "MMA", "AQUAGYM", "PADEL", "ZUMBA", "SPINNING"] as const;
@@ -44,7 +46,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     // like the session was "never added". Reject it up front instead,
     // with a clear message, using the same club-timezone-aware helper the
     // cleanup job uses so both agree on what counts as "past".
-    const sessionInstant = getSessionDateTime(plan.weekStart, day, startTime);
+    const settings = await prisma.gymSettings.findUnique({
+      where: { clubId: auth.user.clubId as string },
+      select: { timezone: true, reservationCutoffMinutes: true },
+    });
+    const sessionInstant = getSessionDateTime(
+      plan.weekStart,
+      day,
+      startTime,
+      resolveReservationConfig(settings).timeZone
+    );
     if (sessionInstant < new Date()) {
       return NextResponse.json(
         { error: "Cet horaire est déjà passé. Choisissez un horaire à venir." },
@@ -56,19 +67,29 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const link = await resolveCoachLink(auth.user.clubId as string, coach, coachId);
     if (!link.ok) return NextResponse.json({ error: link.error }, { status: 400 });
 
-    // Prevent overlapping sessions for the same plan/day. This also makes
-    // malformed duplicate slots much easier to detect before members see them.
-    const overlap = await prisma.session.findFirst({
-      where: { weeklyPlanId, day, startTime: { lt: endTime }, endTime: { gt: startTime } },
-      select: { id: true },
-    });
-    if (overlap) return NextResponse.json({ error: "Une session chevauche déjà cet horaire" }, { status: 409 });
+    const session = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`session-slot:${weeklyPlanId}:${day}`}))`;
+      const overlap = await tx.session.findFirst({
+        where: {
+          weeklyPlanId,
+          clubId: auth.user.clubId as string,
+          day,
+          startTime: { lt: endTime },
+          endTime: { gt: startTime },
+        },
+        select: { id: true },
+      });
+      if (overlap) throw new Error("SESSION_OVERLAP");
 
-    const session = await prisma.session.create({
-      data: { clubId: auth.user.clubId as string, weeklyPlanId, day, startTime, endTime, activity, coach: link.coach, coachId: link.coachId, capacity, location: location || "Salle principale", description: description || null },
+      return tx.session.create({
+        data: { clubId: auth.user.clubId as string, weeklyPlanId, day, startTime, endTime, activity, coach: link.coach, coachId: link.coachId, capacity, location: location || "Salle principale", description: description || null },
+      });
     });
     return NextResponse.json({ session }, { status: 201 });
   } catch (error) {
+    if (error instanceof Error && error.message === "SESSION_OVERLAP") {
+      return NextResponse.json({ error: "Une session chevauche déjà cet horaire" }, { status: 409 });
+    }
     console.error("Admin session POST error:", error);
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }

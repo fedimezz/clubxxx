@@ -8,6 +8,7 @@ const nextConfig: NextConfig = {
   compress: true,
   // Pull only the icons / motion helpers actually used into each page bundle instead of the whole package.
   experimental: {
+    agentUpgrade: "security",
     optimizePackageImports: ["lucide-react", "react-icons/fa6", "framer-motion"],
   },
   images: {

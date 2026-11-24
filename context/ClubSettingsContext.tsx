@@ -4,7 +4,7 @@ import React, { createContext, useContext, useEffect, useRef, useState, useCallb
 import { useTheme } from "@/context/ThemeContext";
 import { brandVars } from "@/lib/brand-colors";
 import { resolveThemeId, resolveHeroModel, isKnownThemeId, DEFAULT_THEME_ID, getTheme, type ThemeId, type HeroModelId } from "@/lib/website-themes";
-import { sanitizeTransform, type HeroModelTransform } from "@/lib/hero-model";
+import { DEFAULT_HERO_TRANSFORM, sanitizeTransform, type HeroModelTransform } from "@/lib/hero-model";
 
 /** An owner-uploaded 3D model, as the public site loads it (same-origin URL). */
 export interface CustomHeroModel {
@@ -263,7 +263,14 @@ export function ClubSettingsProvider({
   // ?previewTheme=<id>&pc=<hex>&sc=<hex>. It is purely visual, client-side and ONLY honoured inside
   // an iframe, for a known theme id and valid hex colors — nothing is read from or written to the
   // database, and nothing is applied when the page is opened normally.
-  const [preview, setPreview] = useState<{ themeId: ThemeId; primary: string | null; secondary: string | null } | null>(null);
+  const [preview, setPreview] = useState<{
+    themeId: ThemeId;
+    primary: string | null;
+    secondary: string | null;
+    logoUrl: string | null;
+    heroModel: string | null;
+    customHeroUrl: string | null;
+  } | null>(null);
   useEffect(() => {
     try {
       if (window.self === window.top) return;
@@ -271,7 +278,17 @@ export function ClubSettingsProvider({
       const id = q.get("previewTheme");
       if (!id || !isKnownThemeId(id)) return;
       const hex = (v: string | null) => (v && /^#[0-9a-fA-F]{6}$/.test(v) ? v : null);
-      setPreview({ themeId: resolveThemeId(id), primary: hex(q.get("pc")), secondary: hex(q.get("sc")) });
+      const logo = q.get("logo");
+      const heroModel = q.get("hm");
+      const customHeroUrl = q.get("hu");
+      setPreview({
+        themeId: resolveThemeId(id),
+        primary: hex(q.get("pc")),
+        secondary: hex(q.get("sc")),
+        logoUrl: logo && /^https:\/\/res\.cloudinary\.com\//.test(logo) ? logo : null,
+        heroModel: heroModel && heroModel !== "custom" ? heroModel : null,
+        customHeroUrl: heroModel === "custom" && customHeroUrl?.startsWith("/api/hero-model") ? customHeroUrl : null,
+      });
     } catch {
       /* cross-origin frame access can throw: no preview */
     }
@@ -283,20 +300,38 @@ export function ClubSettingsProvider({
   }, [preview]);
 
   const value = useMemo(
-    () => ({
-      ...settings,
-      ...(preview
-        ? {
-            themeId: preview.themeId,
-            heroModel: resolveHeroModel(preview.themeId, null),
+    () => {
+      const heroMode: "builtin" | "custom" | "none" = preview
+        ? preview.customHeroUrl
+          ? "custom"
+          : preview.heroModel === "none"
+            ? "none"
+            : "builtin"
+        : settings.heroMode;
+      return {
+        ...settings,
+        ...(preview
+          ? {
+              themeId: preview.themeId,
+              logoUrl: preview.logoUrl ?? settings.logoUrl,
+              heroMode,
+            heroCustomModel: preview.customHeroUrl
+              ? { url: preview.customHeroUrl, format: "glb" as const, byteSize: 0, transform: DEFAULT_HERO_TRANSFORM }
+              : null,
+            heroModel: preview.heroModel === "none"
+              ? resolveHeroModel(preview.themeId, null)
+              : preview.heroModel
+                ? resolveHeroModel(preview.themeId, preview.heroModel)
+                : resolveHeroModel(preview.themeId, null),
             primaryColor: preview.primary ?? settings.primaryColor,
             secondaryColor: preview.secondary ?? settings.secondaryColor,
           }
-        : {}),
-      loading,
-      refresh: fetchSettings,
-      isPageEnabled,
-    }),
+          : {}),
+        loading,
+        refresh: fetchSettings,
+        isPageEnabled,
+      };
+    },
     [settings, preview, loading, fetchSettings, isPageEnabled]
   );
 

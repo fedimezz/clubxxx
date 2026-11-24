@@ -90,8 +90,8 @@ export async function POST(request: NextRequest) {
           } catch (e) {
             if (e instanceof PriceNotConfiguredError) {
               return NextResponse.json(
-                { error: "L'installation professionnelle n'est pas disponible pour le moment. Choisissez la configuration guidée ou manuelle." },
-                { status: 503 }
+                  { error: "L'installation professionnelle n'est pas disponible pour le moment. Choisissez la configuration guidée ou manuelle." },
+                  { status: 503 }
               );
             }
             throw e;
@@ -123,13 +123,13 @@ export async function POST(request: NextRequest) {
       invalidatePublicSettings(clubId);
 
       runAfter(() =>
-        logAction(request, {
-          clubId,
-          actorId: auth.user.id, actorName: auth.user.name, actorRole: auth.user.role,
-          action: "WEBSITE_SETUP_MODE_CHOSEN",
-          category: "CONTENT",
-          targetName: mode,
-        })
+          logAction(request, {
+            clubId,
+            actorId: auth.user.id, actorName: auth.user.name, actorRole: auth.user.role,
+            action: "WEBSITE_SETUP_MODE_CHOSEN",
+            category: "CONTENT",
+            targetName: mode,
+          })
       );
 
       return NextResponse.json({
@@ -141,16 +141,16 @@ export async function POST(request: NextRequest) {
 
     if (phase === "locked") {
       return NextResponse.json(
-        { error: "La configuration du site est déjà terminée et verrouillée." },
-        { status: 409 }
+          { error: "La configuration du site est déjà terminée et verrouillée." },
+          { status: 409 }
       );
     }
 
     const data =
-      phase === "initial"
-        // Completing the wizard confirms the club's theme + 3D model: they lock now (see lib/design-lock.ts).
-        ? { websiteSetupCompleted: true, designLockedAt: new Date() }
-        : { websiteExtraEditUsed: true, websiteCustomizationLocked: true };
+        phase === "initial"
+            // Completing the wizard confirms the club's theme + 3D model: they lock now (see lib/design-lock.ts).
+            ? { websiteSetupCompleted: true }
+            : { websiteExtraEditUsed: true, websiteCustomizationLocked: true };
 
     const updated = await prisma.gymSettings.update({
       where: { clubId },
@@ -165,12 +165,12 @@ export async function POST(request: NextRequest) {
     invalidatePublicSettings(clubId);
 
     runAfter(() =>
-      logAction(request, {
-        clubId,
-        actorId: auth.user.id, actorName: auth.user.name, actorRole: auth.user.role,
-        action: phase === "initial" ? "WEBSITE_SETUP_COMPLETED" : "WEBSITE_CUSTOMIZATION_LOCKED",
-        category: "CONTENT",
-      })
+        logAction(request, {
+          clubId,
+          actorId: auth.user.id, actorName: auth.user.name, actorRole: auth.user.role,
+          action: phase === "initial" ? "WEBSITE_SETUP_COMPLETED" : "WEBSITE_CUSTOMIZATION_LOCKED",
+          category: "CONTENT",
+        })
     );
 
     return NextResponse.json({ phase: computeWebsiteSetupPhase(updated), ...updated });

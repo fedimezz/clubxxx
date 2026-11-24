@@ -43,7 +43,7 @@ export default function AdminHeader({ onMobileMenu, role, locked = false, collap
   const today = new Date().toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" });
 
   return (
-    <header className="theme-nav sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-[var(--border-light)] bg-card px-3 sm:px-6">
+    <header className="theme-nav sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-[var(--border-light)] bg-card px-3 backdrop-blur sm:px-6">
       <button onClick={onMobileMenu} className="grid h-11 w-11 place-items-center rounded-lg hover:bg-muted lg:hidden" aria-label="Ouvrir le menu">
         <Menu size={20} className="text-primary" />
       </button>
@@ -65,7 +65,7 @@ export default function AdminHeader({ onMobileMenu, role, locked = false, collap
         </div>
       </div>
 
-      {!locked && <div className="mx-auto hidden flex-1 justify-center px-2 sm:flex"><GlobalSearch role={role} /></div>}
+      {!locked && <div className="hidden flex-1 justify-start px-2 sm:flex"><GlobalSearch role={role} /></div>}
       <div className="flex-1 sm:hidden" />
 
       {!locked && (
@@ -78,8 +78,8 @@ export default function AdminHeader({ onMobileMenu, role, locked = false, collap
           </Tooltip>
           <NotificationBell />
           <div className="relative" ref={menuRef}>
-            <button onClick={() => setMenu((v) => !v)} aria-haspopup="menu" aria-expanded={menu} className="flex items-center gap-2 rounded-xl p-1 pr-2 hover:bg-muted">
-              <span className="grid h-9 w-9 place-items-center overflow-hidden rounded-full bg-[var(--primary)]/15 text-xs font-bold text-[var(--primary)]">
+            <button onClick={() => setMenu((v) => !v)} aria-haspopup="menu" aria-expanded={menu} className="flex items-center gap-2 rounded-full border border-[var(--border-light)] p-1 pr-2.5 transition hover:border-[var(--primary)]/50 hover:bg-muted">
+              <span className="grid h-9 w-9 place-items-center overflow-hidden rounded-full bg-[var(--primary)] text-xs font-bold text-[var(--brand-contrast)]">
                 {avatar ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={avatar} alt="" className="h-full w-full object-cover" /> : initials}
               </span>
               <span className="hidden text-left leading-tight lg:block">

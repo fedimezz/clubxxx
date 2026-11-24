@@ -63,9 +63,9 @@ export default function GlobalSearch({ role }: { role: "ADMIN" | "OWNER" }) {
   const go = (h: Hit) => { setOpen(false); setQ(""); router.push(h.href); };
 
   return (
-    <div ref={boxRef} className="relative w-full max-w-md">
+    <div ref={boxRef} className="relative w-full max-w-xl">
       <div className="relative">
-        <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" aria-hidden />
+        <Search size={15} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted" aria-hidden />
         <input
           ref={inputRef}
           value={q}
@@ -81,7 +81,7 @@ export default function GlobalSearch({ role }: { role: "ADMIN" | "OWNER" }) {
           aria-controls="admin-search-list"
           aria-label="Rechercher un membre ou une page"
           placeholder="Rechercher un membre, une page…"
-          className="w-full rounded-xl border border-[var(--border-light)] bg-[var(--bg-card)] py-2 pl-9 pr-16 text-sm text-primary placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/40"
+          className="w-full rounded-full border border-[var(--border-light)] bg-[var(--bg-card)] py-2.5 pl-10 pr-16 text-sm text-primary placeholder:text-muted transition focus:border-[var(--primary)]/60 focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30"
         />
         <kbd className="pointer-events-none absolute right-2.5 top-1/2 hidden -translate-y-1/2 rounded border border-[var(--border-light)] px-1.5 py-0.5 text-[10px] text-muted sm:block">Ctrl K</kbd>
       </div>

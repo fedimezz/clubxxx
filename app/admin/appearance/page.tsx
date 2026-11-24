@@ -161,7 +161,15 @@ function AppearanceContent() {
 
   const save = async (override?: Draft) => {
     const target = override ?? draft;
-    if (primaryError || secondaryError || saving) return;
+    if (
+      !/^#[0-9a-fA-F]{6}$/.test(target.primaryColor) ||
+      !/^#[0-9a-fA-F]{6}$/.test(target.secondaryColor) ||
+      uploading ||
+      saving
+    ) {
+      if (!uploading) setError("Corrigez les couleurs avant d'enregistrer.");
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
@@ -217,14 +225,25 @@ function AppearanceContent() {
         <div role="alert" className="rounded-xl border border-red-500/40 bg-red-500/10 p-4 text-sm text-danger">
           {error}{" "}
           {/plan supérieur|n'est pas inclus/i.test(error) && <Link href="/admin/billing" className="font-semibold underline">Voir les plans</Link>}
-          {/verrouill|demande/i.test(error) && <Link href="/admin/theme-requests" className="font-semibold underline">Faire une demande de changement</Link>}
         </div>
       )}
 
       <section aria-labelledby="theme-h" className="space-y-3">
         <h2 id="theme-h" className="text-lg font-semibold text-primary">1. Thème</h2>
         <p className="text-sm text-muted">Chaque thème change la mise en page, la typographie, les animations et le style des sections — pas seulement les couleurs.</p>
-        <ThemePicker selectedId={draft.themeId} activeId={saved.themeId} onSelect={pickTheme} onApply={applyTheme} applying={saving} clubName={draft.name} primaryColor={draft.primaryColor} secondaryColor={draft.secondaryColor} />
+        <ThemePicker
+          selectedId={draft.themeId}
+          activeId={saved.themeId}
+          onSelect={pickTheme}
+          onApply={applyTheme}
+          applying={saving}
+          clubName={draft.name}
+          logoUrl={draft.logoUrl}
+          heroModel={draft.heroModel}
+          customHeroUrl={customModel?.url ?? null}
+          primaryColor={draft.primaryColor}
+          secondaryColor={draft.secondaryColor}
+        />
       </section>
 
       <section aria-labelledby="model-h" className="space-y-3">
@@ -294,12 +313,12 @@ function AppearanceContent() {
         </div>
       </section>
 
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-card/95 px-4 py-3 backdrop-blur md:left-64">
+      <div className="sticky bottom-0 z-30 -mx-4 -mb-6 border-t border-border bg-card/95 px-4 py-3 backdrop-blur md:-mx-8">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-3">
           <p className="text-sm text-muted" aria-live="polite">{note ?? (dirty ? "Modifications non enregistrées" : "Tout est enregistré")}</p>
           <div className="flex gap-2">
             <button type="button" disabled={!dirty || saving} onClick={() => setDraft(saved)} className="rounded-xl border border-border px-4 py-2 text-sm font-medium text-primary disabled:opacity-50">Annuler</button>
-            <button type="button" disabled={!dirty || saving || !!primaryError || !!secondaryError} onClick={() => void save()} className="inline-flex items-center gap-2 rounded-xl bg-[var(--brand)] px-5 py-2 text-sm font-bold text-[var(--brand-contrast)] disabled:opacity-50">
+            <button type="button" disabled={!dirty || saving || uploading || !!primaryError || !!secondaryError} onClick={() => void save()} className="inline-flex items-center gap-2 rounded-xl bg-[var(--brand)] px-5 py-2 text-sm font-bold text-[var(--brand-contrast)] disabled:opacity-50">
               {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} Enregistrer
             </button>
           </div>

@@ -215,6 +215,8 @@ const optionalImageUrl = () =>
     .optional();
 const optionalHexColor = () =>
   z.string().trim().regex(/^#[0-9a-fA-F]{3,8}$/, "Couleur invalide (format hex attendu)").optional().or(z.literal(""));
+const exactHexColor = () =>
+  z.string().trim().regex(/^#[0-9a-fA-F]{6}$/, "Couleur invalide (format hex attendu : #RRGGBB)").optional().or(z.literal(""));
 
 export const gymSettingsSchema = z.object({
   name: z.string().trim().min(1, "Le nom du club ne peut pas être vide").max(150).optional(),
@@ -230,8 +232,8 @@ export const gymSettingsSchema = z.object({
   youtubeUrl: optionalUrl(),
   websiteUrl: optionalUrl(),
   description: shortTextSchema(1000).optional().or(z.literal("")),
-  secondaryColor: optionalHexColor(),
-  primaryColor: optionalHexColor(),
+  secondaryColor: exactHexColor(),
+  primaryColor: exactHexColor(),
   backgroundColor: optionalHexColor(),
   backgroundColorDark: optionalHexColor(),
   enabledPages: z.record(z.string(), z.unknown()).optional(),

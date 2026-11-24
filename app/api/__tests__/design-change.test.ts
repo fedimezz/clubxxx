@@ -220,49 +220,27 @@ describe("POST /api/admin/design-change/apply (spend the one-time grant)", () =>
   });
 });
 
-describe("PUT /api/admin/settings once the design is locked", () => {
+describe("PUT /api/admin/settings — theme and 3D model are freely changeable (lock removed)", () => {
   const put = (body: unknown) => owner("/api/admin/settings", "PUT", body);
 
-  it("423 on a real theme or 3D-model change, nothing written", async () => {
+  it("a real theme or 3D-model change is saved, even on a club that used to be locked", async () => {
     const { PUT } = await import("@/app/api/admin/settings/route");
     const a = await PUT(put({ themeId: "boxing" }));
-    expect(a.status).toBe(423);
-    expect((await a.json()).code).toBe("DESIGN_LOCKED");
-    expect((await PUT(put({ heroModel: "kettlebell" }))).status).toBe(423);
-    expect(settingsUpdate).not.toHaveBeenCalled();
-  });
-
-  it("re-sending the current theme / model (forms send everything) is fine and never rewrites them", async () => {
-    settingsFindUnique.mockResolvedValue({ clubId: "club_a", ...LOCKED, themeId: "classic" }); // legacy id of "modern"
-    const { PUT } = await import("@/app/api/admin/settings/route");
-    const res = await PUT(put({ themeId: "modern", heroModel: null, name: "Nouveau nom" }));
-    expect(res.status).toBe(200);
-    const data = settingsUpdate.mock.calls[0][0].data;
-    expect(data).toMatchObject({ name: "Nouveau nom" });
-    expect(data).not.toHaveProperty("themeId");
-    expect(data).not.toHaveProperty("heroModel");
-  });
-
-  it("DB trigger error surfaced as 423 even if the pre-check were bypassed", async () => {
-    settingsFindUnique.mockResolvedValue({ clubId: "club_a", ...LOCKED, designLockedAt: null, websiteSetupMode: "WIZARD" });
-    settingsUpdate.mockRejectedValue(new Error("DESIGN_LOCKED: x"));
-    const { PUT } = await import("@/app/api/admin/settings/route");
-    expect((await PUT(put({ themeId: "boxing" }))).status).toBe(423);
-  });
-
-  it("before the lock the owner changes freely; in wizard mode this does not lock yet", async () => {
-    settingsFindUnique.mockResolvedValue({ clubId: "club_a", ...LOCKED, designLockedAt: null });
-    const { PUT } = await import("@/app/api/admin/settings/route");
-    expect((await PUT(put({ themeId: "boxing" }))).status).toBe(200);
+    expect(a.status).toBe(200);
     expect(settingsUpdate.mock.calls[0][0].data).toMatchObject({ themeId: "boxing" });
-    expect(settingsUpdate.mock.calls[0][0].data).not.toHaveProperty("designLockedAt");
+    const b = await PUT(put({ heroModel: "kettlebell" }));
+    expect(b.status).toBe(200);
+    expect(settingsUpdate.mock.calls[1][0].data).toMatchObject({ heroModel: "kettlebell" });
   });
 
-  it("in manual mode the first saved theme choice locks the design", async () => {
-    settingsFindUnique.mockResolvedValue({ clubId: "club_a", ...LOCKED, designLockedAt: null, websiteSetupMode: "MANUAL" });
-    const { PUT } = await import("@/app/api/admin/settings/route");
-    expect((await PUT(put({ themeId: "boxing" }))).status).toBe(200);
-    expect(settingsUpdate.mock.calls[0][0].data.designLockedAt).toBeInstanceOf(Date);
+  it("never writes designLockedAt any more, whatever the setup mode", async () => {
+    for (const websiteSetupMode of ["WIZARD", "MANUAL"]) {
+      settingsUpdate.mockClear();
+      settingsFindUnique.mockResolvedValue({ clubId: "club_a", ...LOCKED, designLockedAt: null, websiteSetupMode });
+      const { PUT } = await import("@/app/api/admin/settings/route");
+      expect((await PUT(put({ themeId: "boxing" }))).status).toBe(200);
+      expect(settingsUpdate.mock.calls[0][0].data).not.toHaveProperty("designLockedAt");
+    }
   });
 });
 

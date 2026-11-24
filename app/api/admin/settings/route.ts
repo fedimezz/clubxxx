@@ -3,9 +3,7 @@ import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { invalidatePublicSettings } from "@/lib/club-public-settings";
 import { requireAdmin, requireOwner } from "@/lib/auth";
-import { resolveThemeId } from "@/lib/website-themes";
 import { denyIfFeatureLocked } from "@/lib/plan-feature-guard";
-import { designLockedResponse, isDesignLockError } from "@/lib/design-lock";
 import { formatZodError, gymSettingsSchema } from "@/lib/validation";
 import { denyUnlessPermitted } from "@/lib/permission-guard";
 import { denyIfWebsiteLocked } from "@/lib/website-setup";
@@ -68,8 +66,8 @@ export async function PUT(request: NextRequest) {
     // Normalize null -> undefined before validation so an untouched nullable
     // field never makes an otherwise valid save fail with "Invalid input".
     const body = rawBody && typeof rawBody === "object"
-      ? Object.fromEntries(Object.entries(rawBody as Record<string, unknown>).map(([key, value]) => [key, value === null && key !== "heroModel" ? undefined : value]))
-      : rawBody;
+        ? Object.fromEntries(Object.entries(rawBody as Record<string, unknown>).map(([key, value]) => [key, value === null && key !== "heroModel" ? undefined : value]))
+        : rawBody;
 
     const parsed = gymSettingsSchema.safeParse(body);
     if (!parsed.success) {
@@ -87,18 +85,8 @@ export async function PUT(request: NextRequest) {
 
     const current = await getOrCreateSettings(owner.clubId as string);
 
-    // Theme + 3D model: locked after setup. Re-sending the current value (the settings forms always
-    // send the whole object) is fine; a real change needs an approved one-time grant and goes through
-    // /api/admin/design-change/apply. The database trigger enforces the same rule even if this check
-    // were bypassed.
-    const themeChanging = themeId !== undefined && resolveThemeId(themeId) !== resolveThemeId(current.themeId);
-    const heroChanging = heroModel !== undefined && (heroModel ?? null) !== (current.heroModel ?? null);
-    const designLocked = !!current.designLockedAt;
-    if (designLocked && (themeChanging || heroChanging)) return designLockedResponse();
-    // Outside the guided wizard (manual / professional setup) there is no "complete" step, so the first
-    // time the owner saves a theme or model choice is the moment it is confirmed and locked.
-    const lockNow = !designLocked && (themeChanging || heroChanging) && current.websiteSetupMode !== "WIZARD";
-
+    // Theme + 3D model: the owner can change them freely, at any time (the one-time "change request"
+    // lock was removed; see migration 20261124000000_remove_design_lock).
     // Every theme and every standard 3D model is available on every plan. The ONLY plan-gated choice
     // is the club's own uploaded model ("custom"): selecting it needs the customHeroModel feature.
     // Keeping a custom model that is already selected stays allowed (a downgrade never breaks a site).
@@ -117,50 +105,46 @@ export async function PUT(request: NextRequest) {
 
     let settings;
     try {
-    settings = await prisma.gymSettings.update({
-      where: { clubId: owner.clubId as string },
-      data: {
-        ...(name !== undefined && { name }),
-        ...(logoUrl !== undefined && { logoUrl: logoUrl || null }),
-        ...(address !== undefined && { address: address || null }),
-        ...(phone !== undefined && { phone: phone || null }),
-        ...(email !== undefined && { email: email || null }),
-        ...(workingHours !== undefined && { workingHours: workingHours as Prisma.InputJsonValue }),
-        ...(facebookUrl !== undefined && { facebookUrl: facebookUrl || null }),
-        ...(instagramUrl !== undefined && { instagramUrl: instagramUrl || null }),
-        ...(tiktokUrl !== undefined && { tiktokUrl: tiktokUrl || null }),
-        ...(twitterUrl !== undefined && { twitterUrl: twitterUrl || null }),
-        ...(youtubeUrl !== undefined && { youtubeUrl: youtubeUrl || null }),
-        ...(websiteUrl !== undefined && { websiteUrl: websiteUrl || null }),
-        ...(description !== undefined && { description: description || null }),
-        ...(secondaryColor !== undefined && { secondaryColor: secondaryColor || null }),
-        ...(primaryColor !== undefined && { primaryColor: primaryColor || null }),
-        ...(backgroundColor !== undefined && { backgroundColor: backgroundColor || null }),
-        ...(backgroundColorDark !== undefined && { backgroundColorDark: backgroundColorDark || null }),
-        ...(enabledPages !== undefined && { enabledPages: enabledPages as Prisma.InputJsonValue }),
-        ...(heroTitle !== undefined && { heroTitle: heroTitle || null }),
-        ...(heroSubtitle !== undefined && { heroSubtitle: heroSubtitle || null }),
-        // Locked clubs never write these fields from here (unchanged values are skipped so a legacy
-        // id such as "classic" is not rewritten to its alias).
-        ...(themeId !== undefined && (!designLocked || themeChanging) && { themeId }),
-        ...(heroModel !== undefined && (!designLocked || heroChanging) && { heroModel }),
-        ...(lockNow && { designLockedAt: new Date() }),
-        updatedBy: owner.id,
-      },
-    });
+      settings = await prisma.gymSettings.update({
+        where: { clubId: owner.clubId as string },
+        data: {
+          ...(name !== undefined && { name }),
+          ...(logoUrl !== undefined && { logoUrl: logoUrl || null }),
+          ...(address !== undefined && { address: address || null }),
+          ...(phone !== undefined && { phone: phone || null }),
+          ...(email !== undefined && { email: email || null }),
+          ...(workingHours !== undefined && { workingHours: workingHours as Prisma.InputJsonValue }),
+          ...(facebookUrl !== undefined && { facebookUrl: facebookUrl || null }),
+          ...(instagramUrl !== undefined && { instagramUrl: instagramUrl || null }),
+          ...(tiktokUrl !== undefined && { tiktokUrl: tiktokUrl || null }),
+          ...(twitterUrl !== undefined && { twitterUrl: twitterUrl || null }),
+          ...(youtubeUrl !== undefined && { youtubeUrl: youtubeUrl || null }),
+          ...(websiteUrl !== undefined && { websiteUrl: websiteUrl || null }),
+          ...(description !== undefined && { description: description || null }),
+          ...(secondaryColor !== undefined && { secondaryColor: secondaryColor || null }),
+          ...(primaryColor !== undefined && { primaryColor: primaryColor || null }),
+          ...(backgroundColor !== undefined && { backgroundColor: backgroundColor || null }),
+          ...(backgroundColorDark !== undefined && { backgroundColorDark: backgroundColorDark || null }),
+          ...(enabledPages !== undefined && { enabledPages: enabledPages as Prisma.InputJsonValue }),
+          ...(heroTitle !== undefined && { heroTitle: heroTitle || null }),
+          ...(heroSubtitle !== undefined && { heroSubtitle: heroSubtitle || null }),
+          ...(themeId !== undefined && { themeId }),
+          ...(heroModel !== undefined && { heroModel }),
+          updatedBy: owner.id,
+        },
+      });
     } catch (e) {
-      if (isDesignLockError(e)) return designLockedResponse();
       throw e;
     }
     invalidatePublicSettings(owner.clubId as string);
 
     runAfter(() =>
-      logAction(request, {
-        clubId: owner.clubId as string,
-        actorId: owner.id, actorName: owner.name, actorRole: owner.role,
-        action: "CLUB_SETTINGS_UPDATED",
-        category: "SETTINGS",
-      })
+        logAction(request, {
+          clubId: owner.clubId as string,
+          actorId: owner.id, actorName: owner.name, actorRole: owner.role,
+          action: "CLUB_SETTINGS_UPDATED",
+          category: "SETTINGS",
+        })
     )
 
     return NextResponse.json({ settings });

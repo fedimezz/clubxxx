@@ -13,6 +13,9 @@ interface ThemePickerProps {
   onSelect: (theme: ThemePreset) => void;
   disabled?: boolean;
   clubName?: string;
+  logoUrl?: string | null;
+  heroModel?: string | null;
+  customHeroUrl?: string | null;
   /** Live brand colors to show in the previews (defaults to each theme's own). */
   primaryColor?: string;
   secondaryColor?: string;
@@ -166,14 +169,22 @@ type Filter = "all" | (typeof THEME_CATEGORIES)[number]["id"] | "others";
 
 /** Full-site preview: the REAL public site in an iframe, switched to the previewed theme (see ClubSettingsContext). */
 function PreviewModal({
-  theme, primary, secondary, active, disabled, applying, onClose, onApply,
+  theme, primary, secondary, logoUrl, heroModel, customHeroUrl, active, disabled, applying, onClose, onApply,
 }: {
-  theme: ThemePreset; primary: string; secondary: string; active: boolean; disabled?: boolean; applying?: boolean;
+  theme: ThemePreset; primary: string; secondary: string; logoUrl?: string | null; heroModel?: string | null; customHeroUrl?: string | null; active: boolean; disabled?: boolean; applying?: boolean;
   onClose: () => void; onApply: () => void;
 }) {
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
   const [loaded, setLoaded] = useState(false);
-  const src = `/?previewTheme=${encodeURIComponent(theme.id)}&pc=${encodeURIComponent(primary)}&sc=${encodeURIComponent(secondary)}`;
+  const previewParams = new URLSearchParams({
+    previewTheme: theme.id,
+    pc: primary,
+    sc: secondary,
+  });
+  if (logoUrl) previewParams.set("logo", logoUrl);
+  if (heroModel) previewParams.set("hm", heroModel);
+  if (heroModel === "custom" && customHeroUrl) previewParams.set("hu", customHeroUrl);
+  const src = `/?${previewParams.toString()}`;
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -218,7 +229,7 @@ function PreviewModal({
   );
 }
 
-export default function ThemePicker({ selectedId, onSelect, disabled, clubName, primaryColor, secondaryColor, activeId, onApply, applying, previewable = true }: ThemePickerProps) {
+export default function ThemePicker({ selectedId, onSelect, disabled, clubName, logoUrl, heroModel, customHeroUrl, primaryColor, secondaryColor, activeId, onApply, applying, previewable = true }: ThemePickerProps) {
   const current = resolveThemeId(selectedId);
   const active = resolveThemeId(activeId ?? selectedId);
   const [query, setQuery] = useState("");
@@ -310,6 +321,9 @@ export default function ThemePicker({ selectedId, onSelect, disabled, clubName, 
           theme={previewing}
           primary={primaryColor || previewing.primaryColor}
           secondary={secondaryColor || previewing.secondaryColor}
+          logoUrl={logoUrl}
+          heroModel={heroModel}
+          customHeroUrl={customHeroUrl}
           active={previewing.id === active}
           disabled={disabled}
           applying={applying}
