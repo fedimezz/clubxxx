@@ -18,7 +18,7 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import WebsiteChangeRequestPanel from "@/components/admin/WebsiteChangeRequestPanel";
 import PhoneInput from "@/components/PhoneInput";
-import { matchingThemeId } from "@/lib/website-themes";
+import { matchingThemeId, resolveThemeId } from "@/lib/website-themes";
 import { WIZARD_PAGE_KEYS, type WebsiteSetupPhase } from "@/lib/website-setup-shared";
 import { MAX_GALLERY_IMAGES } from "@/lib/page-content-schema";
 import { extractSlugFromHost, isSingleHostMode } from "@/lib/host";
@@ -57,7 +57,7 @@ interface PageDef {
 }
 
 const EMPTY_SETTINGS: SettingsState = {
-  name: "", logoUrl: "", themeId: "classic", primaryColor: "#4f46e5", secondaryColor: "#3b82f6",
+  name: "", logoUrl: "", themeId: "premium-glass", primaryColor: "#4f46e5", secondaryColor: "#3b82f6",
   description: "", phone: "", email: "", address: "",
   facebookUrl: "", instagramUrl: "", tiktokUrl: "", twitterUrl: "", youtubeUrl: "", websiteUrl: "",
 };
@@ -121,7 +121,7 @@ export default function WebsiteSetupWizard() {
         setSettings({
           name: s.name ?? "",
           logoUrl: s.logoUrl ?? "",
-          themeId: s.themeId ?? matchingThemeId(primary, secondary),
+          themeId: resolveThemeId(typeof s.themeId === "string" ? s.themeId : matchingThemeId(primary, secondary)),
           primaryColor: primary,
           secondaryColor: secondary,
           description: s.description ?? "",

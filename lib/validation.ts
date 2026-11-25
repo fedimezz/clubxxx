@@ -12,7 +12,7 @@
 // several routes (email, phone, password, pagination, ids) — not a
 // project-wide validation layer yet. Extend it as more routes are
 // migrated; don't duplicate these primitives inline in a route.
-import { HERO_MODEL_IDS, HERO_SPECIAL_CHOICES, THEME_IDS, isKnownThemeId, isSelectableThemeId } from "@/lib/website-themes";
+import { HERO_MODEL_IDS, HERO_SPECIAL_CHOICES, isKnownThemeId, isSelectableThemeId } from "@/lib/website-themes";
 import { z } from "zod";
 import { MEMBERSHIP_CURRENCIES } from "@/lib/payment-currencies";
 import { isValidCountryCode } from "@/lib/countries";
@@ -264,7 +264,7 @@ export const websiteSetupActionSchema = z.discriminatedUnion("action", [
 // ─── Theme / 3D model change requests (one-time grants, see lib/design-lock.ts) ─────
 export const designChangeRequestSchema = z
   .object({
-    themeId: z.enum(THEME_IDS).refine(isSelectableThemeId, "Ce thème n'est plus proposé.").optional(),
+    themeId: z.string().trim().min(1).max(40).refine(isSelectableThemeId, "Ce thème n'est plus proposé.").optional(),
     // Explicit models only: "reset to the theme default" (null) is not requestable.
     heroModel: z.enum([...HERO_MODEL_IDS, ...HERO_SPECIAL_CHOICES]).optional(),
     reason: z.string().trim().min(10, "Expliquez en quelques mots pourquoi (10 caractères minimum).").max(500),

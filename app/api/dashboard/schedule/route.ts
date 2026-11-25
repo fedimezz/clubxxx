@@ -61,6 +61,7 @@ export async function GET(request: NextRequest) {
           where: { userId: auth.user.id, isCancelled: false },
           select: { id: true },
         },
+        coachRef: { select: { photoUrl: true } },
       },
       orderBy: [{ day: "asc" }, { startTime: "asc" }],
     });
@@ -74,8 +75,9 @@ export async function GET(request: NextRequest) {
     const reservationConfig = resolveReservationConfig(settings);
     const now = new Date();
 
-    const formatted = sessions.map(({ userSessions, ...session }) => ({
+    const formatted = sessions.map(({ userSessions, coachRef, ...session }) => ({
       ...session,
+      coachPhotoUrl: coachRef?.photoUrl ?? null, // additive: shown on the planning cards
       isBookedByUser: userSessions.length > 0,
       isFull: session.currentBookings >= session.capacity,
       spotsLeft: Math.max(0, session.capacity - session.currentBookings),

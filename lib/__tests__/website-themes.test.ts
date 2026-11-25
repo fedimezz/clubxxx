@@ -1,97 +1,90 @@
 import { describe, it, expect } from "vitest";
 import {
-  THEME_IDS, THEME_PRESETS, HERO_MODELS, HERO_MODEL_IDS, resolveThemeId, resolveHeroModel, getTheme, matchingThemeId, isHeroModelId,
+  THEME_IDS,
+  THEME_PRESETS,
+  SELECTABLE_THEME_PRESETS,
+  HERO_MODELS,
+  HERO_MODEL_IDS,
+  DEFAULT_THEME_ID,
+  resolveThemeId,
+  resolveHeroModel,
+  getTheme,
+  matchingThemeId,
+  isHeroModelId,
+  isKnownThemeId,
+  isSelectableThemeId,
 } from "../website-themes";
 
+const REQUESTED_THEME_IDS = [
+  "modern-fitness",
+  "premium-glass",
+  "energetic-red",
+  "clean-minimal",
+  "sporty-dark-blue",
+  "nature-wellness",
+  "neon-purple",
+  "classic-elegant",
+  "bold-black-yellow",
+];
+
 describe("website themes", () => {
-  it("keeps the original theme ids first and appends the newer ones (eighteen total, all included in every plan)", () => {
-    expect([...THEME_IDS].slice(0, 5)).toEqual(["musculation", "crossfit", "boxing", "yoga", "modern"]);
-    expect([...THEME_IDS].slice(5, 10)).toEqual(["luxury", "neon", "powerlifting", "urban", "minimalist"]);
-    expect([...THEME_IDS].slice(10)).toEqual(["monochrome", "sunset", "ocean", "royal", "forest", "gold", "cyber", "aurora"]);
-    // No theme is a paid unlock any more: the preset type has no "premium" flag at all.
-    expect(THEME_PRESETS.some((t) => "premium" in t)).toBe(false);
-    expect(THEME_PRESETS).toHaveLength(18);
-    expect(THEME_PRESETS.map((t) => t.id)).toEqual([...THEME_IDS]);
+  it("offers exactly the nine requested themes", () => {
+    expect([...THEME_IDS]).toEqual(REQUESTED_THEME_IDS);
+    expect(THEME_PRESETS.map((theme) => theme.id)).toEqual(REQUESTED_THEME_IDS);
+    expect(SELECTABLE_THEME_PRESETS).toHaveLength(9);
+    expect(THEME_PRESETS.every((theme) => theme.flagship)).toBe(true);
+    expect(THEME_PRESETS.some((theme) => "premium" in theme)).toBe(false);
   });
 
-  it("every theme has its own brand colors and a valid default 3D model (the first ten also keep their own layout and font)", () => {
-    const original = THEME_PRESETS.slice(0, 10);
-    expect(new Set(original.map((t) => t.layout)).size).toBe(10);
-    expect(new Set(original.map((t) => t.headingFont)).size).toBe(10);
-    expect(new Set(THEME_PRESETS.map((t) => `${t.primaryColor}|${t.secondaryColor}`)).size).toBe(18);
-    for (const t of THEME_PRESETS) {
-      expect(HERO_MODEL_IDS).toContain(t.defaultHeroModel);
-      expect(t.primaryColor).toMatch(/^#[0-9a-f]{6}$/i);
-      expect(t.secondaryColor).toMatch(/^#[0-9a-f]{6}$/i);
+  it("gives every theme a distinct layout, navigation, pricing style, font and color pair", () => {
+    for (const key of ["layout", "nav", "pricing", "headingFont"] as const) {
+      expect(new Set(THEME_PRESETS.map((theme) => theme[key])).size, key).toBe(9);
+    }
+    expect(new Set(THEME_PRESETS.map((theme) => `${theme.primaryColor}|${theme.secondaryColor}`)).size).toBe(9);
+    for (const theme of THEME_PRESETS) {
+      expect(theme.primaryColor).toMatch(/^#[0-9a-f]{6}$/i);
+      expect(theme.secondaryColor).toMatch(/^#[0-9a-f]{6}$/i);
+      expect(HERO_MODEL_IDS).toContain(theme.defaultHeroModel);
     }
   });
 
-  it("resolves every theme id (old and new) to itself and keeps legacy aliases", () => {
-    for (const id of THEME_IDS) expect(resolveThemeId(id)).toBe(id);
-    expect(getTheme("luxury").name).toBe("Luxury Club");
-    expect(getTheme("neon").name).toBe("Neon Performance");
-    expect(getTheme("powerlifting").name).toBe("Powerlifting");
-    expect(getTheme("urban").name).toBe("Urban Street");
-    expect(getTheme("minimalist").name).toBe("Minimal Elite");
-    expect(getTheme("monochrome").name).toBe("Noir & Blanc");
+  it("keeps every previous theme id valid as an alias to one of the nine current designs", () => {
+    const legacyIds = [
+      "musculation", "crossfit", "boxing", "yoga", "modern", "luxury", "neon", "powerlifting", "urban",
+      "minimalist", "monochrome", "sunset", "ocean", "royal", "forest", "gold", "cyber", "aurora",
+      "classic", "energetic", "nature", "midnight", "minimal", "custom",
+    ];
+    for (const id of legacyIds) {
+      expect(isKnownThemeId(id), id).toBe(true);
+      expect(REQUESTED_THEME_IDS).toContain(resolveThemeId(id));
+    }
+    for (const id of REQUESTED_THEME_IDS) expect(resolveThemeId(id)).toBe(id);
+    expect(resolveThemeId(null)).toBe(DEFAULT_THEME_ID);
+    expect(resolveThemeId("<script>")).toBe(DEFAULT_THEME_ID);
+    expect(isSelectableThemeId("not-a-theme")).toBe(false);
+    expect(getTheme("luxury").name).toBe("Classic Elegant");
+    expect(getTheme("neon").name).toBe("Neon Purple");
   });
 
-  it("offers the requested 3D objects", () => {
-    const ids = HERO_MODELS.map((m) => m.id);
-    for (const required of ["dumbbell", "dumbbell-classic", "kettlebell", "barbell", "boxing-glove"]) expect(ids).toContain(required);
-    expect(HERO_MODELS.length).toBeGreaterThanOrEqual(6);
-  });
-
-  it("maps legacy theme ids and unknown values to a valid theme", () => {
-    expect(resolveThemeId("classic")).toBe("modern");
-    expect(resolveThemeId("energetic")).toBe("crossfit");
-    expect(resolveThemeId("nature")).toBe("yoga");
-    expect(resolveThemeId("midnight")).toBe("boxing");
-    expect(resolveThemeId("minimal")).toBe("musculation");
-    expect(resolveThemeId("custom")).toBe("modern");
-    expect(resolveThemeId("boxing")).toBe("boxing");
-    expect(resolveThemeId(null)).toBe("modern");
-    expect(resolveThemeId("<script>")).toBe("modern");
-  });
-
-  it("uses the chosen hero model, else the theme default", () => {
-    expect(resolveHeroModel("boxing", "kettlebell")).toBe("kettlebell");
-    expect(resolveHeroModel("boxing", null)).toBe("boxing-glove");
-    expect(resolveHeroModel("yoga", "not-a-model")).toBe("zen-stones");
+  it("keeps the built-in 3D model catalogue intact and independent of theme IDs", () => {
+    expect(HERO_MODEL_IDS).toHaveLength(20);
+    expect(HERO_MODELS.map((model) => model.id)).toEqual([...HERO_MODEL_IDS]);
+    for (const required of ["dumbbell", "dumbbell-classic", "kettlebell", "barbell", "boxing-glove"]) {
+      expect(HERO_MODEL_IDS).toContain(required);
+    }
     expect(isHeroModelId("barbell")).toBe(true);
     expect(isHeroModelId("rocket")).toBe(false);
-    expect(getTheme("crossfit").name).toBe("CrossFit");
   });
 
-  it("matchingThemeId still recognises preset colors", () => {
-    const p = THEME_PRESETS[0];
-    expect(matchingThemeId(p.primaryColor, p.secondaryColor)).toBe(p.id);
+  it("uses the chosen 3D model or the selected theme's default", () => {
+    expect(resolveHeroModel("sporty-dark-blue", "kettlebell")).toBe("kettlebell");
+    expect(resolveHeroModel("energetic-red", null)).toBe("stopwatch");
+    expect(resolveHeroModel("energetic-red", "not-a-model")).toBe("stopwatch");
+  });
+
+  it("matches the new preset colors", () => {
+    const preset = THEME_PRESETS[0];
+    expect(matchingThemeId(preset.primaryColor, preset.secondaryColor)).toBe(preset.id);
     expect(matchingThemeId("#000001", "#000002")).toBe("custom");
-  });
-
-  it("offers nine flagship themes, each with its own layout, navigation and pricing presentation", async () => {
-    const { SELECTABLE_THEME_PRESETS, isSelectableThemeId, isKnownThemeId } = await import("../website-themes");
-    const flagships = THEME_PRESETS.filter((t) => t.flagship);
-    expect(flagships.map((t) => t.id)).toEqual(["musculation", "crossfit", "boxing", "yoga", "modern", "luxury", "neon", "urban", "minimalist"]);
-    expect(flagships.map((t) => t.name)).toEqual([
-      "Musculation", "CrossFit", "Boxing & MMA", "Yoga & Bien-être", "Fitness Moderne", "Luxury Club", "Neon Performance", "Urban Street", "Minimal Elite",
-    ]);
-    for (const key of ["layout", "nav", "pricing", "headingFont", "mood"] as const) {
-      const values = flagships.map((t) => t[key]);
-      expect(new Set(values).size, key).toBe(9);
-    }
-    // All nine are unlocked, and Luxury Club is no longer retired (it has its own "private" layout).
-    for (const t of flagships) expect(isSelectableThemeId(t.id)).toBe(true);
-    expect(getTheme("luxury").layout).toBe("private");
-    expect(getTheme("luxury").layout).not.toBe(getTheme("gold").layout);
-    expect(SELECTABLE_THEME_PRESETS).toHaveLength(18);
-    expect(isKnownThemeId("gold")).toBe(true);
-    expect(isSelectableThemeId("nope")).toBe(false);
-  });
-
-  it("keeps the legacy themes valid and filed under non-flagship", () => {
-    for (const id of ["powerlifting", "monochrome", "sunset", "ocean", "royal", "forest", "gold", "cyber", "aurora"]) {
-      expect(THEME_PRESETS.find((t) => t.id === id)?.flagship).toBe(false);
-    }
   });
 });

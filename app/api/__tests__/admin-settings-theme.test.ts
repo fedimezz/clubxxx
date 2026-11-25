@@ -59,16 +59,16 @@ describe("PUT /api/admin/settings — theme, 3D model, branding", () => {
   it("persists theme, hero model, colors and logo for the owner's club", async () => {
     const { PUT } = await import("@/app/api/admin/settings/route");
     const logo = "https://res.cloudinary.com/demo/image/upload/logo.png";
-    const res = await PUT(put("OWNER", { themeId: "boxing", heroModel: "kettlebell", primaryColor: "#dc2626", secondaryColor: "#facc15", logoUrl: logo }));
+    const res = await PUT(put("OWNER", { themeId: "sporty-dark-blue", heroModel: "kettlebell", primaryColor: "#dc2626", secondaryColor: "#facc15", logoUrl: logo }));
     expect(res.status).toBe(200);
     const call = settingsUpdate.mock.calls[0][0];
     expect(call.where).toEqual({ clubId: "club_a" });
-    expect(call.data).toMatchObject({ themeId: "boxing", heroModel: "kettlebell", primaryColor: "#dc2626", secondaryColor: "#facc15", logoUrl: logo });
+    expect(call.data).toMatchObject({ themeId: "sporty-dark-blue", heroModel: "kettlebell", primaryColor: "#dc2626", secondaryColor: "#facc15", logoUrl: logo });
   });
 
   it("heroModel null resets to the theme's default object (null is NOT dropped)", async () => {
     const { PUT } = await import("@/app/api/admin/settings/route");
-    await PUT(put("OWNER", { themeId: "yoga", heroModel: null }));
+    await PUT(put("OWNER", { themeId: "nature-wellness", heroModel: null }));
     expect(settingsUpdate.mock.calls[0][0].data).toHaveProperty("heroModel", null);
   });
 
@@ -82,7 +82,7 @@ describe("PUT /api/admin/settings — theme, 3D model, branding", () => {
   it("is owner-only: regular admins and coaches cannot change the website", async () => {
     const { PUT } = await import("@/app/api/admin/settings/route");
     for (const role of ["ADMIN", "COACH", "MEMBER"]) {
-      expect((await PUT(put(role, { themeId: "boxing" }))).status).toBe(403);
+      expect((await PUT(put(role, { themeId: "sporty-dark-blue" }))).status).toBe(403);
     }
     expect(settingsUpdate).not.toHaveBeenCalled();
   });
@@ -93,8 +93,8 @@ describe("GET /api/settings/public — what the club's site renders", () => {
     const { GET } = await import("@/app/api/settings/public/route");
     const res = await GET(new NextRequest("https://club-a.example.test/api/settings/public", { headers: { host: "club-a.example.test" } }));
     const json = await res.json();
-    expect(json.themeId).toBe("modern"); // legacy "classic"
-    expect(json.heroModel).toBe("dumbbell"); // modern's default
+    expect(json.themeId).toBe("premium-glass"); // legacy "classic"
+    expect(json.heroModel).toBe("diamond"); // Premium Glass default
     expect(json.primaryColor).toBe("#112233");
   });
 });

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { requireAdmin } from "@/lib/auth";
-import { notifyAllMembers } from "@/lib/notify";
+import { notifyAllMembers, publishNotifications } from "@/lib/notify";
 import { sendPushToUsers } from "@/lib/push";
 import { runAfter } from "@/lib/after";
 import { hasPermission } from "@/lib/permissions";
@@ -142,7 +142,7 @@ export async function DELETE(
       year: "numeric",
     });
 
-    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    const notifications = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // 1. Cancel all active bookings across all sessions
       if (activeUserSessionIds.length > 0) {
         await tx.userSession.updateMany({
@@ -152,8 +152,8 @@ export async function DELETE(
       }
 
       // 2. One notification per affected member
-      if (affectedUserIds.length > 0) {
-        await tx.notification.createMany({
+      const createdNotifications = affectedUserIds.length > 0
+        ? await tx.notification.createManyAndReturn({
           data: affectedUserIds.map((userId) => ({
             userId,
             clubId,
@@ -161,8 +161,8 @@ export async function DELETE(
             message: `Le planning de la semaine du ${weekLabel} a été supprimé. Toutes vos réservations sur cette semaine ont été annulées.`,
             type: "WARNING",
           })),
-        });
-      }
+        })
+        : [];
 
       // 3. Delete all UserSessions, then Sessions, then the plan
       await tx.userSession.deleteMany({
@@ -170,16 +170,19 @@ export async function DELETE(
       });
       await tx.session.deleteMany({ where: { weeklyPlanId: planId, clubId } });
       await tx.weeklyPlan.deleteMany({ where: { id: planId, clubId } });
+      return createdNotifications;
     });
 
-    // Phones of the members whose bookings were just cancelled (the rows above
-    // are the in-app notifications; this is the matching real push).
+    // Persisted notifications are also published to open SSE streams.
     runAfter(() =>
-      sendPushToUsers(clubId, affectedUserIds, {
-        title: "Planning annulé",
-        body: `Le planning de la semaine du ${weekLabel} a été supprimé. Vos réservations sur cette semaine ont été annulées.`,
-        data: { type: "WARNING", kind: "schedule_change" },
-      })
+      Promise.all([
+        publishNotifications(notifications),
+        sendPushToUsers(clubId, affectedUserIds, {
+          title: "Planning annulé",
+          body: `Le planning de la semaine du ${weekLabel} a été supprimé. Vos réservations sur cette semaine ont été annulées.`,
+          data: { type: "WARNING", kind: "schedule_change" },
+        }),
+      ])
     );
 
     return NextResponse.json({

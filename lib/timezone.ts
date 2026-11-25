@@ -106,6 +106,13 @@ export function zonedWallTimeToUtc(
   return new Date(guess - offsetBefore);
 }
 
+/** UTC instant at the start of the club-local calendar day containing `instant`. */
+export function startOfDayInZone(instant: Date | number, timeZone: string): Date {
+  const zone = resolveTimeZone(timeZone);
+  const { year, month, day } = wallClockInZone(instant, zone);
+  return zonedWallTimeToUtc(year, month, day, 0, 0, zone);
+}
+
 /** "YYYY-MM-DD" of the calendar day `instant` falls on in `timeZone`. */
 export function isoDateInZone(instant: Date | number, timeZone: string): string {
   const w = wallClockInZone(instant, timeZone);

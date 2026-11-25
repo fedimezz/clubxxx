@@ -175,7 +175,15 @@ export async function POST(request: NextRequest) {
         });
         if (consumed.count !== 1) throw new UnverifiedOnboardingEmailError("Founder email verification is missing, expired, or already used");
 
-        const club = await tx.club.create({ data: { slug, name: clubName, status: "TRIAL", trialEndsAt } });
+        const club = await tx.club.create({
+          data: {
+            slug,
+            name: clubName,
+            status: "TRIAL",
+            trialEndsAt,
+            storage: { create: { inventoryCompletedAt: trialNow } },
+          },
+        });
         const owner = await tx.user.create({
           data: {
             clubId: club.id, name, email, phone: phone || null, password: hashedTrialPassword,
@@ -194,7 +202,7 @@ export async function POST(request: NextRequest) {
             clubId: club.id,
             name: clubName,
             address: address || null,
-            themeId: themeId || "classic",
+            themeId: themeId || "premium-glass",
             primaryColor: primaryColor || "#4f46e5",
             secondaryColor: secondaryColor || "#3b82f6",
             heroTitle: heroTitle || null,
@@ -252,7 +260,14 @@ export async function POST(request: NextRequest) {
 
         // SUSPENDED until a human approves AND verifies the payment: no access, no session.
         const club = await tx.club.create({
-          data: { slug, name: clubName, status: "SUSPENDED", suspendedAt: manualNow, suspendedReason: AWAITING_MANUAL_PAYMENT_REASON },
+          data: {
+            slug,
+            name: clubName,
+            status: "SUSPENDED",
+            suspendedAt: manualNow,
+            suspendedReason: AWAITING_MANUAL_PAYMENT_REASON,
+            storage: { create: { inventoryCompletedAt: manualNow } },
+          },
         });
         const owner = await tx.user.create({
           data: { clubId: club.id, name, email, phone: phone || null, password: hashedManualPassword, role: "OWNER", isActive: true, emailVerified: manualNow },
@@ -266,7 +281,7 @@ export async function POST(request: NextRequest) {
             clubId: club.id,
             name: clubName,
             address: address || null,
-            themeId: themeId || "classic",
+            themeId: themeId || "premium-glass",
             primaryColor: primaryColor || "#4f46e5",
             secondaryColor: secondaryColor || "#3b82f6",
             heroTitle: heroTitle || null,
@@ -339,7 +354,12 @@ export async function POST(request: NextRequest) {
       }
 
       const club = await tx.club.create({
-        data: { slug, name: clubName, status: "SUSPENDED" },
+        data: {
+          slug,
+          name: clubName,
+          status: "SUSPENDED",
+          storage: { create: { inventoryCompletedAt: now } },
+        },
       });
 
       const owner = await tx.user.create({
@@ -372,7 +392,7 @@ export async function POST(request: NextRequest) {
           clubId: club.id,
           name: clubName,
           address: address || null,
-          themeId: themeId || "classic",
+          themeId: themeId || "premium-glass",
           primaryColor: primaryColor || "#4f46e5",
           secondaryColor: secondaryColor || "#3b82f6",
           heroTitle: heroTitle || null,

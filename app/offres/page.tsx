@@ -34,7 +34,7 @@ export default function OffresPage() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loadingPlans, setLoadingPlans] = useState(true);
   const [plansError, setPlansError] = useState(false);
-  const { t, img } = useEditableContent("offres");
+  const { t, img, imageStyle } = useEditableContent("offres");
   const { isLoggedIn } = useAuth();
   const heroImage = img("heroImage", "");
 
@@ -78,7 +78,7 @@ export default function OffresPage() {
           {heroImage && (
             <>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={heroImage} alt="" className="absolute inset-0 w-full h-full object-cover" />
+              <img src={heroImage} alt="" className="absolute inset-0 w-full h-full object-cover" style={imageStyle("heroImage")} />
               <div className="absolute inset-0 bg-black/55" />
             </>
           )}

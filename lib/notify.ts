@@ -37,6 +37,16 @@ interface NotifyInput {
   data?: Record<string, unknown>;
 }
 
+export async function publishNotifications<T extends { userId: string }>(
+  notifications: T[]
+): Promise<void> {
+  await Promise.all(
+    notifications.map((notification) =>
+      broadcastToUser(notification.userId, "notification", notification)
+    )
+  );
+}
+
 /** Notify a single user. clubId must be the caller's own verified club — never client input. */
 export async function notifyUser(clubId: string, userId: string, input: NotifyInput) {
   const notification = await prisma.notification.create({
@@ -50,7 +60,7 @@ export async function notifyUser(clubId: string, userId: string, input: NotifyIn
     },
   });
 
-  await broadcastToUser(userId, "notification", notification);
+  await publishNotifications([notification]);
   pushInBackground(clubId, [userId], input);
   return notification;
 }
@@ -70,10 +80,11 @@ export async function notifyUser(clubId: string, userId: string, input: NotifyIn
  * marker instead of creating one row per await.
  */
 export async function notifyUsers(clubId: string, userIds: string[], input: NotifyInput) {
-  if (userIds.length === 0) return [];
+  const uniqueUserIds = [...new Set(userIds)];
+  if (uniqueUserIds.length === 0) return [];
 
   const notifications = await Promise.all(
-    userIds.map((userId) =>
+    uniqueUserIds.map((userId) =>
       prisma.notification.create({
         data: {
           clubId,
@@ -87,10 +98,8 @@ export async function notifyUsers(clubId: string, userIds: string[], input: Noti
     )
   );
 
-  await Promise.all(
-    notifications.map((n) => broadcastToUser(n.userId, "notification", n))
-  );
-  pushInBackground(clubId, userIds, input);
+  await publishNotifications(notifications);
+  pushInBackground(clubId, uniqueUserIds, input);
 
   return notifications;
 }

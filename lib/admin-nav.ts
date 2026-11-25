@@ -88,6 +88,7 @@ const ADMIN_GROUPS: AdminGroup[] = [
     tabs: [
       { name: "Paramètres du club", href: "/admin/settings" },
       { name: "Apparence", href: "/admin/appearance", ownerOnly: true },
+      { name: "Studio d'images", href: "/admin/image-studio", ownerOnly: true },
       { name: "Assistant du site", href: "/admin/website-setup", ownerOnly: true },
       { name: "Services & domaine", href: "/admin/services", ownerOnly: true },
       { name: "Demandes de thème", href: "/admin/theme-requests", ownerOnly: true },

@@ -53,7 +53,7 @@ export default function ScheduleGrid({ sessions, onSelectSession }: Props) {
             <div className="flex items-center justify-between mb-3 flex-shrink-0">
               <h3 className="font-semibold text-primary text-sm">{DAY_LABELS[day]}</h3>
               {isToday && (
-                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[var(--primary)] text-white">
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[var(--primary)] text-[var(--brand-contrast)]">
                   Aujourd&apos;hui
                 </span>
               )}

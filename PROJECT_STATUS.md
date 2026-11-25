@@ -1,5 +1,96 @@
 # ClubX — SaaS Multi-Tenant — Project Status
 
+## 2026-11-25 — Nine website themes and Image Studio
+
+### Implemented
+
+- Replaced the selectable theme catalogue with exactly nine distinct public templates. Existing saved theme IDs remain supported through aliases; onboarding and design-change requests use canonical current IDs.
+- Added a distinct layout, navigation style, desktop sidebar, responsive mobile navigation, entrance animation, section styling, typography, and pricing presentation for each theme.
+- Kept the existing built-in 3D model catalogue and selection independent from theme and image customization. Theme switching does not overwrite an explicitly selected model.
+- Added the owner-facing Image Studio for existing page image slots: local upload, OpenAI image generation, crop/reposition controls, replacement, and removal.
+- Reused the authenticated upload/storage path for uploaded and generated assets, and persisted per-image crop metadata alongside the tenant's existing page content. The studio does not accept a client-selected `clubId`.
+- Documented theme identities, customization rules, image slots, optional OpenAI configuration, and limits in `README.md`.
+
+### Verification
+
+- `npm run validate`: passed — ESLint 0 errors / 95 warnings, TypeScript passed, 114 test files / 979 tests passed.
+- `npm run build`: passed — Prisma Client generation and Next.js production build completed.
+- Theme, legacy alias, 3D catalogue, tenant-scoped image-content persistence, image-position, and OpenAI generation route regression tests passed.
+- A production CSS fixture was exercised at desktop (1440×900) and mobile (390×844) widths for all nine themes; computed sidebar and mobile-panel layouts were inspected.
+
+### Not verified — follow-up required
+
+- The local app had no tenant-resolved club or authenticated owner session, so full public-page screenshots, live theme switching, per-club image persistence, and authenticated 3D-model selection were not browser-tested.
+- No live OpenAI or Cloudinary request was made. Image generation requires server-side `OPENAI_API_KEY`; uploaded/generated-image persistence still depends on the configured Cloudinary and database services.
+- The Image Studio's crop metadata has unit coverage, but its complete authenticated upload → save → public render workflow needs a tenant-backed browser walkthrough.
+
+# 2026-11-25 — Per-club storage quota and backfill
+
+### Implemented
+
+- Added per-club Cloudinary asset and reservation ledgers, a quota counter, and a migration that marks existing clubs' inventories incomplete.
+- Added paginated, rerunnable Cloudinary inventory backfill for image, video, and raw resources. Uploads for existing clubs fail closed until the backfill completes.
+- Enforced each plan's `storageGB` limit with tenant-scoped row locks and temporary reservations around Cloudinary uploads, including cleanup on provider/database failures.
+- Counted data-URL avatars and custom 3D models stored in PostgreSQL against the same quota; new onboarding, platform-provisioned, and seeded clubs initialize with an empty completed inventory.
+- Restricted avatar fallback to the explicit Cloudinary-not-configured response so upload/quota failures cannot bypass the quota.
+- Documented the upload pause, migration, and backfill sequence in `README.md`.
+
+### Verification
+
+- `npm run validate`: passed — ESLint 0 errors / 95 warnings, TypeScript passed, 111 test files / 988 tests passed.
+- `npm run build`: Prisma Client generation and Next.js production build passed.
+- `npm exec prisma validate`: passed.
+- `git diff --check`: passed; Git reported only existing LF/CRLF conversion warnings.
+
+### Not verified — deployment work remains
+
+- The migration has not been applied to a live database, and no real Cloudinary inventory/backfill was run. Existing clubs will be unable to upload until the migration is deployed and `npm run storage:backfill` completes.
+- Pause uploads while old application instances are being replaced; old versions do not create reservations or ledger entries.
+- No real PostgreSQL concurrency stress test or role-by-role browser walkthrough was performed.
+
+## 2026-11-25 — Incremental feature QA: notifications, bookings, dashboard, preferences, and coach workflows
+
+This is a focused pass, not a claim that every feature or user workflow has been exhaustively audited. The working tree already contained unrelated dashboard/UI edits; those changes were left intact.
+
+### Fixes made
+
+- The notification bell now uses the API's complete unread count instead of counting only its latest 50 displayed notifications.
+- SSE notifications are merged with an in-flight history response by ID, so a late history response cannot discard a notification that arrived live. Reconnects and notification changes trigger a history resync.
+- Mark-as-read and mark-all-read failures now refresh from the server instead of leaving the bell permanently optimistic. Duplicate live events are ignored.
+- Admin broadcasts and notifications created while deleting a weekly plan are now broadcast to connected SSE clients as well as being persisted and pushed to mobile devices.
+- Multi-recipient notification delivery removes duplicate user IDs before creating rows, publishing events, and sending push notifications.
+- Booking cancellation now claims the active booking with a conditional `updateMany` scoped to the authenticated user and club. A concurrent cancellation that loses the claim cannot decrement the session capacity counter a second time.
+- Member dashboard subscription selection now excludes expired rows still marked `ACTIVE`.
+- Dashboard chart data is restricted to the relevant recent date windows, ordered newest-first where useful, and no longer silently truncated by arbitrary row caps.
+- The legacy weekly attendance histogram now buckets check-ins by the club timezone rather than the server's local timezone.
+- Profile subscription selection now deterministically picks the newest unexpired active subscription.
+- Preference loading reports failures and offers retry instead of leaving the settings page on an endless spinner; language changes are applied locally only after the server save succeeds.
+- Added authenticated settings API regressions for get-or-create, validated updates, ignored client-supplied tenant IDs, and invalid input.
+- Coach check-in and undo now serialize per club/session/member/local day, preventing duplicate concurrent check-ins while keeping attendance reads and deletes tenant-scoped.
+- Coach attendance and roster now use the club-local day boundary instead of the server-local midnight.
+- Coach invitation account creation now persists the linked coach profile in the same transaction; invitation email delivery happens only after both database rows commit.
+
+### Verification run
+
+- Focused notification/booking regressions: 5 test files, 28 tests passed.
+- Focused member-dashboard route regressions: 1 test file, 5 tests passed, including membership expiry selection, chart query bounds, tenant scope, and a club-local weekday boundary.
+- Focused dashboard/settings/profile regressions: 3 test files, 10 tests passed.
+- Focused coach attendance/timezone regressions: 2 test files, 32 tests passed.
+- Focused coach-account/attendance regressions: 2 test files, 6 tests passed, including profile-write failure and duplicate check-in cases.
+- `npm run validate`: ESLint completed with 0 errors and 95 warnings; TypeScript passed; 109 test files / 976 tests passed.
+- `npm run build`: Prisma Client generation and Next.js production build succeeded after all changes in this pass.
+- `git diff --check`: passed; Git reported only line-ending conversion warnings.
+
+### Remaining verification
+
+- The cancellation-race regression test simulates the losing conditional update; it is not a concurrent PostgreSQL stress test.
+- Coach check-in concurrency and timezone behavior are covered by mocked route tests and pure timezone tests, not a live PostgreSQL concurrency test.
+- Dashboard query completeness was tested at the query-shape level; no large-volume performance test was run.
+- SSE/push delivery has not been exercised against a deployed multi-instance Redis/Expo setup.
+- Stripe, email, SMS, and push provider workflows need credentials and must be tested in their respective test environments.
+- SUPER_ADMIN, OWNER, ADMIN, COACH, and MEMBER end-to-end browser workflows have not been manually walked through in this pass.
+- Member/coach CRUD and payment workflows have not had a full manual/browser audit; only the relevant existing automated suites and the focused new regressions were run.
+
 ## 2026-11-23 — UX/UI upgrade: owner dashboard, 9 themes, pro planning calendar, reservation cutoff (read first)
 
 Full details, file list and test results: `CHANGES_2026-11-23.md`. Highlights for future work:

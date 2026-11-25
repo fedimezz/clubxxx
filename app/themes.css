@@ -1,7 +1,6 @@
 /* ==========================================================================
-   WEBSITE THEMES — Musculation · CrossFit · Boxing · Yoga & Bien-être · Modern ·
-   Luxury · Neon · Powerlifting · Urban · Minimalist · Noir & Blanc · Sunset ·
-   Ocean · Royal · Forest
+   WEBSITE THEMES — Modern Fitness · Premium Glass · Energetic Red · Clean Minimal ·
+   Sporty Dark Blue · Nature & Wellness · Neon Purple · Classic Elegant · Bold Black & Yellow
    Selected per club (GymSettings.themeId) and applied as data-site-theme on
    <html> (app/layout.tsx). Each theme sets typography, shape, section
    styling and motion; the page LAYOUTS live in components/themes/*.
@@ -121,12 +120,15 @@
 @keyframes t-glow { 0%, 100% { opacity: 0.65; } 50% { opacity: 1; } }
 @keyframes t-shine { from { background-position: -200% 0; } to { background-position: 200% 0; } }
 @keyframes t-drift { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(24px, -18px); } }
+@keyframes t-data { from { opacity: 0; clip-path: inset(0 100% 0 0); } to { opacity: 1; clip-path: inset(0); } }
+@keyframes t-unfold { from { opacity: 0; transform: perspective(700px) rotateX(-8deg) translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes t-stomp { 0% { opacity: 0; transform: translateY(24px) skewX(-5deg); } 72% { opacity: 1; transform: translateY(-3px) skewX(1deg); } 100% { transform: none; } }
 
 @media (prefers-reduced-motion: reduce) {
   .t-reveal, .t-marquee-track, .t-stripes, .t-spot, .t-blob,
   .neon-floor, .neon-glow, .salon-gold,
   .hero-editorial, .hero-bento, .hero-studio, .hero-salon, .hero-street { animation: none !important; }
-  [data-reveal] { opacity: 1 !important; animation: none !important; }
+  [data-reveal], .t-reveal, .t-reveal-2, .t-reveal-3 { opacity: 1 !important; animation: none !important; }
   .theme-card:hover, .theme-btn:hover, .theme-btn-ghost:hover { transform: none; }
 }
 
@@ -798,6 +800,130 @@ html.dark[data-site-theme="aurora"] {
 [data-site-theme="neon"] .theme-card:hover { box-shadow: 0 0 0 1px var(--brand), 0 0 44px -6px color-mix(in srgb, var(--brand) 70%, transparent); }
 [data-site-theme="luxury"] .theme-card:hover { box-shadow: inset 0 0 0 1px var(--brand), 0 36px 70px -30px color-mix(in srgb, var(--brand) 40%, #000); }
 [data-site-theme="yoga"] .theme-card, [data-site-theme="minimalist"] .theme-card { transition-duration: 0.6s; }
+
+/* ── Current nine selectable identities ────────────────────────────────── */
+[data-site-theme="modern-fitness"] {
+  --t-heading-font: "Oswald", "Arial Narrow", sans-serif;
+  --t-body-font: "Inter", system-ui, sans-serif;
+  --t-heading-transform: uppercase;
+  --t-heading-tracking: 0.04em;
+  --t-heading-weight: 700;
+  --t-radius: 4px;
+  --t-btn-radius: 3px;
+  --t-reveal: t-slam;
+  --t-section-bg: #111713;
+  --t-section-alt: #18211a;
+}
+[data-site-theme="premium-glass"] {
+  --t-heading-font: "Space Grotesk", system-ui, sans-serif;
+  --t-body-font: "Inter", system-ui, sans-serif;
+  --t-heading-tracking: -0.04em;
+  --t-radius: 1.5rem;
+  --t-btn-radius: 9999px;
+  --t-reveal: t-pop;
+  --t-section-bg: #f5f8ff;
+  --t-section-alt: #eaf1ff;
+  --t-card-shadow: 0 22px 60px -34px rgb(37 99 235 / 0.48);
+}
+html.dark[data-site-theme="premium-glass"] {
+  --t-section-bg: #0e1626;
+  --t-section-alt: #131f33;
+}
+[data-site-theme="energetic-red"] {
+  --t-heading-font: "Bebas Neue", Impact, sans-serif;
+  --t-body-font: "Barlow", "Inter", sans-serif;
+  --t-heading-transform: uppercase;
+  --t-heading-tracking: 0.06em;
+  --t-heading-weight: 400;
+  --t-radius: 8px;
+  --t-btn-radius: 4px;
+  --t-reveal: t-slide;
+  --t-section-bg: #170f10;
+  --t-section-alt: #211315;
+}
+[data-site-theme="clean-minimal"] {
+  --t-heading-font: "Inter", system-ui, sans-serif;
+  --t-body-font: "Inter", system-ui, sans-serif;
+  --t-heading-tracking: -0.04em;
+  --t-heading-weight: 500;
+  --t-radius: 2px;
+  --t-btn-radius: 2px;
+  --t-reveal: t-fade;
+  --t-section-bg: #f8faf9;
+  --t-section-alt: #eef2f0;
+  --t-card-shadow: none;
+}
+html.dark[data-site-theme="clean-minimal"] {
+  --t-section-bg: #111615;
+  --t-section-alt: #171e1c;
+}
+[data-site-theme="sporty-dark-blue"] {
+  --t-heading-font: "Barlow Condensed", "Arial Narrow", sans-serif;
+  --t-body-font: "Barlow", "Inter", sans-serif;
+  --t-heading-transform: uppercase;
+  --t-heading-tracking: 0.04em;
+  --t-heading-weight: 800;
+  --t-radius: 6px;
+  --t-btn-radius: 4px;
+  --t-reveal: t-data;
+  --t-section-bg: #071426;
+  --t-section-alt: #0b1c31;
+  --t-card-shadow: 0 0 0 1px rgb(56 189 248 / 0.18), 0 18px 44px -24px #020617;
+}
+[data-site-theme="nature-wellness"] {
+  --t-heading-font: "Nunito Sans", "Inter", sans-serif;
+  --t-body-font: "Nunito Sans", system-ui, sans-serif;
+  --t-heading-weight: 500;
+  --t-heading-tracking: -0.02em;
+  --t-radius: 2rem;
+  --t-btn-radius: 9999px;
+  --t-reveal: t-breathe;
+  --t-section-bg: #f5f3e9;
+  --t-section-alt: #e9eee5;
+  --t-card-shadow: 0 18px 50px -30px color-mix(in srgb, var(--brand) 50%, transparent);
+}
+html.dark[data-site-theme="nature-wellness"] {
+  --t-section-bg: #131b16;
+  --t-section-alt: #1a251c;
+}
+[data-site-theme="neon-purple"] {
+  --t-heading-font: "Orbitron", system-ui, sans-serif;
+  --t-body-font: "Inter", system-ui, sans-serif;
+  --t-heading-transform: uppercase;
+  --t-heading-tracking: 0.04em;
+  --t-heading-weight: 800;
+  --t-radius: 4px;
+  --t-btn-radius: 3px;
+  --t-reveal: t-glow;
+  --t-section-bg: #10091f;
+  --t-section-alt: #170e2b;
+  --t-card-shadow: 0 0 26px -12px color-mix(in srgb, var(--brand) 80%, transparent);
+}
+[data-site-theme="classic-elegant"] {
+  --t-heading-font: "Playfair Display", Georgia, serif;
+  --t-body-font: "Inter", system-ui, sans-serif;
+  --t-heading-weight: 500;
+  --t-heading-tracking: 0.01em;
+  --t-radius: 0;
+  --t-btn-radius: 0;
+  --t-reveal: t-unfold;
+  --t-section-bg: #17130f;
+  --t-section-alt: #201a13;
+  --t-card-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brand) 24%, transparent);
+}
+[data-site-theme="bold-black-yellow"] {
+  --t-heading-font: "Archivo Black", Impact, sans-serif;
+  --t-body-font: "Barlow", "Inter", sans-serif;
+  --t-heading-transform: uppercase;
+  --t-heading-tracking: 0.01em;
+  --t-heading-weight: 400;
+  --t-radius: 2px;
+  --t-btn-radius: 2px;
+  --t-reveal: t-stomp;
+  --t-section-bg: #111113;
+  --t-section-alt: #1a1a1d;
+  --t-card-shadow: 7px 7px 0 color-mix(in srgb, var(--brand) 78%, #000);
+}
 
 @media (prefers-reduced-motion: reduce) {
   .t-progress { display: none; }

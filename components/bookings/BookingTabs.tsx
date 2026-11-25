@@ -1,6 +1,7 @@
 "use client";
 
-export type BookingTab = "upcoming" | "past" | "cancelled";
+import type { BookingTab } from "@/lib/booking-status";
+export type { BookingTab } from "@/lib/booking-status";
 
 interface Props {
   active: BookingTab;
@@ -16,27 +17,17 @@ const TABS: { key: BookingTab; label: string }[] = [
 
 export default function BookingTabs({ active, onChange, counts }: Props) {
   return (
-    <div className="flex gap-1 p-1 bg-muted rounded-xl w-fit">
+    <div role="tablist" aria-label="Type de réservations" className="flex w-fit max-w-full gap-1 overflow-x-auto rounded-full bg-muted/60 p-1">
       {TABS.map((tab) => (
         <button
           key={tab.key}
+          role="tab"
+          aria-selected={active === tab.key}
           onClick={() => onChange(tab.key)}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-            active === tab.key
-              ? "bg-card text-primary shadow-sm"
-              : "text-muted hover:text-primary"
-          }`}
+          className="mx-chip flex items-center gap-2 whitespace-nowrap !px-4 !py-2 !text-sm"
         >
           {tab.label}
-          <span
-            className={`text-xs px-1.5 py-0.5 rounded-full ${
-              active === tab.key
-                ? "bg-[var(--primary)]/10 text-[var(--primary)]"
-                : "bg-card text-muted"
-            }`}
-          >
-            {counts[tab.key]}
-          </span>
+          <span className={`rounded-full px-1.5 py-0.5 text-xs ${active === tab.key ? "bg-black/15" : "bg-card text-muted"}`}>{counts[tab.key]}</span>
         </button>
       ))}
     </div>

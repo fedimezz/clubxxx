@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireCoach } from "@/lib/auth";
 import { hasCoachPermission } from "@/lib/permissions";
+import { DEFAULT_TIMEZONE, startOfDayInZone } from "@/lib/timezone";
 
 // GET /api/dashboard/coach/sessions/[id]/roster — members booked into one
 // of THIS coach's own sessions, with their attendance status for today's
@@ -16,30 +17,34 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   try {
     const { id: sessionId } = await params;
+    const clubId = auth.user.clubId!;
 
-    const coach = await prisma.coach.findFirst({ where: { userId: auth.user.id, clubId: auth.user.clubId! } });
+    const coach = await prisma.coach.findFirst({ where: { userId: auth.user.id, clubId } });
     if (!coach) {
       return NextResponse.json({ error: "Aucun profil coach lié à ce compte" }, { status: 404 });
     }
 
     // clubId enforced: session must belong to this gym AND this coach
-    const session = await prisma.session.findFirst({ where: { id: sessionId, clubId: auth.user.clubId!, coachId: coach.id } });
+    const session = await prisma.session.findFirst({ where: { id: sessionId, clubId, coachId: coach.id } });
     if (!session) {
       return NextResponse.json({ error: "Séance introuvable" }, { status: 404 });
     }
 
     const bookings = await prisma.userSession.findMany({
-      where: { sessionId, clubId: auth.user.clubId!, isCancelled: false },
+      where: { sessionId, clubId, isCancelled: false },
       include: { user: { select: { id: true, name: true, avatar: true } } },
       orderBy: { bookedAt: "asc" },
       take: 500,
     });
 
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
+    const settings = await prisma.gymSettings.findUnique({
+      where: { clubId },
+      select: { timezone: true },
+    });
+    const todayStart = startOfDayInZone(new Date(), settings?.timezone ?? DEFAULT_TIMEZONE);
 
     const attendances = await prisma.attendance.findMany({
-      where: { sessionId, checkInTime: { gte: todayStart } },
+      where: { clubId, sessionId, checkInTime: { gte: todayStart } },
     });
     const checkedInUserIds = new Set(attendances.map((a) => a.userId));
 

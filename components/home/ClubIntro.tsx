@@ -9,18 +9,19 @@ import { safeImageUrl } from "@/lib/image-url";
 // "Accueil") or filled the club description. No made-up figures, no stock copy.
 // An optional owner photo sits BESIDE the text; it never touches the hero.
 export default function ClubIntro() {
-  const { t, loading } = useEditableContent("home");
+  const { t, imageStyle, loading } = useEditableContent("home");
   const { description } = useClubSettings();
 
   const title = t("introTitle", "").trim();
   const text = t("introText", description || "").trim();
   const photo = safeImageUrl(t("introImage", ""));
+  const hasText = Boolean(title || text);
 
-  if (loading || (!title && !text)) return null;
+  if (loading || (!title && !text && !photo)) return null;
 
   return (
     <section className="theme-section-alt py-16 md:py-20">
-      <div className={`mx-auto max-w-7xl px-6 ${photo ? "grid items-center gap-10 md:grid-cols-2" : "text-center"}`}>
+      <div className={`mx-auto max-w-7xl px-6 ${photo && hasText ? "grid items-center gap-10 md:grid-cols-2" : photo ? "flex justify-center" : "text-center"}`}>
         <div>
           {title && <h2 className="theme-heading text-3xl md:text-5xl">{title}</h2>}
           {text && (
@@ -28,8 +29,8 @@ export default function ClubIntro() {
           )}
         </div>
         {photo && (
-          <div className="relative aspect-[4/3] w-full overflow-hidden rounded-3xl bg-[var(--bg-muted)]">
-            <Image src={photo} alt={title || "Photo du club"} fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover" />
+          <div className={`relative aspect-[4/3] w-full overflow-hidden rounded-3xl bg-[var(--bg-muted)] ${hasText ? "" : "max-w-4xl"}`}>
+            <Image src={photo} alt={title || "Photo du club"} fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover" style={imageStyle("introImage")} />
           </div>
         )}
       </div>

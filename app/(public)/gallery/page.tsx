@@ -7,7 +7,7 @@ import { useEditableContent } from "@/hooks/useEditableContent";
 import { MAX_GALLERY_IMAGES } from "@/lib/page-content-schema";
 
 export default function GalleryPage() {
-  const { t, img, list, loading } = useEditableContent("gallery");
+  const { t, img, list, imageStyle, loading } = useEditableContent("gallery");
   const heroImage = img("heroImage", "");
   const fitness = list("galleryFitness", []).slice(0, MAX_GALLERY_IMAGES);
   const padel = list("galleryPadel", []).slice(0, MAX_GALLERY_IMAGES);
@@ -27,6 +27,7 @@ export default function GalleryPage() {
             alt="Gallery"
             fill
             className="object-cover"
+            style={imageStyle("heroImage")}
           />
         )}
 
@@ -46,6 +47,8 @@ export default function GalleryPage() {
           title="Fitness"
           description="Premium fitness facilities."
           images={fitness}
+          imageKey="galleryFitness"
+          imageStyle={imageStyle}
         />
       )}
 
@@ -54,6 +57,8 @@ export default function GalleryPage() {
           title="Padel"
           description="Professional padel courts."
           images={padel}
+          imageKey="galleryPadel"
+          imageStyle={imageStyle}
         />
       )}
 
@@ -62,6 +67,8 @@ export default function GalleryPage() {
           title="Swimming Pool"
           description="Relax and train."
           images={pool}
+          imageKey="galleryPool"
+          imageStyle={imageStyle}
         />
       )}
 

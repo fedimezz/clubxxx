@@ -1,97 +1,85 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { Loader2, CalendarX, RefreshCw } from "lucide-react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import Link from "next/link";
+import { AlertTriangle, CalendarCheck, CalendarX, History, Loader2, RefreshCw, Search, Ban } from "lucide-react";
 
-import BookingTabs, { type BookingTab } from "@/components/bookings/BookingTabs";
+import BookingTabs from "@/components/bookings/BookingTabs";
 import BookingCard, { type Booking } from "@/components/bookings/BookingCard";
+import BookingDetailsModal from "@/components/bookings/BookingDetailsModal";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import EmptyState from "@/components/ui/EmptyState";
+import { Skeleton } from "@/components/ui/Skeleton";
+import { ToastProvider, useToast } from "@/components/ui/Toast";
+import { ACTIVITY_LABELS } from "@/components/member/DashboardWidgets";
+import { filterBookings, type BookingTab } from "@/lib/booking-status";
 
 interface BookingsData {
   upcoming: Booking[];
   past: Booking[];
   cancelled: Booking[];
+  timeZone?: string;
 }
 
-function Toast({
-  message,
-  type,
-  onClose,
-}: {
-  message: string;
-  type: "success" | "error";
-  onClose: () => void;
-}) {
-  useEffect(() => {
-    const t = setTimeout(onClose, 4000);
-    return () => clearTimeout(t);
-  }, [onClose]);
+const EMPTY: Record<BookingTab, { title: string; description: string }> = {
+  upcoming: { title: "Aucune réservation à venir", description: "Choisissez une séance dans le planning de votre club pour la retrouver ici." },
+  past: { title: "Pas encore d’historique", description: "Vos séances passées apparaîtront ici une fois la semaine terminée." },
+  cancelled: { title: "Aucune réservation annulée", description: "Les réservations que vous annulez sont conservées ici." },
+};
 
-  return (
-    <div
-      className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 px-5 py-3.5 rounded-xl shadow-lg border text-sm font-medium animate-fade-in max-w-sm
-        ${
-          type === "success"
-            ? "bg-card border-green-500/30 text-green-600 dark:text-green-400"
-            : "bg-card border-red-500/30 text-red-600 dark:text-red-400"
-        }`}
-    >
-      <span className="flex-1">{message}</span>
-      <button
-        onClick={onClose}
-        className="ml-2 opacity-50 hover:opacity-100 transition-opacity"
-        aria-label="Fermer la notification"
-      >
-        ✕
-      </button>
-    </div>
-  );
-}
-
-export default function BookingsPage() {
+function BookingsContent() {
+  const toast = useToast();
   const [data, setData] = useState<BookingsData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<BookingTab>("upcoming");
   const [cancellingId, setCancellingId] = useState<string | null>(null);
-  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+  const [toCancel, setToCancel] = useState<Booking | null>(null);
+  const [details, setDetails] = useState<Booking | null>(null);
+  const [query, setQuery] = useState("");
+  const [activity, setActivity] = useState("ALL");
+  const [nowMs, setNowMs] = useState(() => Date.now());
 
-
-  const showToast = useCallback((message: string, type: "success" | "error") => {
-    setToast({ message, type });
+  // Keep statuses ("En cours", "Terminée") fresh without a reload.
+  useEffect(() => {
+    const t = window.setInterval(() => setNowMs(Date.now()), 30_000);
+    return () => window.clearInterval(t);
   }, []);
 
-  const fetchBookings = useCallback(
-    async (showLoading = true) => {
-      if (showLoading) setLoading(true);
-      else setIsRefreshing(true);
-
-      try {
-        const res = await fetch("/api/bookings", {
-          credentials: "include",
-        });
-        const json = await res.json();
-
-        if (res.ok) {
-          setData(json);
-        } else {
-          showToast(json.error || "Erreur de chargement", "error");
-        }
-      } catch {
-        showToast("Erreur serveur", "error");
-      } finally {
-        setLoading(false);
-        setIsRefreshing(false);
+  const fetchBookings = useCallback(async (showLoading = true) => {
+    if (showLoading) setLoading(true);
+    else setIsRefreshing(true);
+    try {
+      const res = await fetch("/api/bookings", { credentials: "include", cache: "no-store" });
+      const json = await res.json().catch(() => null);
+      if (res.ok && json) {
+        setData(json);
+        setLoadError(null);
+      } else {
+        const msg = json?.error || "Impossible de charger vos réservations.";
+        if (showLoading) setLoadError(msg);
+        else toast.error(msg);
       }
-    },
-    [showToast]
-  );
+    } catch {
+      const msg = "Connexion impossible. Vérifiez votre réseau.";
+      if (showLoading) setLoadError(msg);
+      else toast.error(msg);
+    } finally {
+      setLoading(false);
+      setIsRefreshing(false);
+    }
+  }, [toast]);
 
   useEffect(() => {
-    fetchBookings(true);
+    void fetchBookings(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleCancel = async (sessionId: string) => {
+  // Cancellation goes through the existing endpoint; nothing is shown as cancelled until it answers OK.
+  const confirmCancel = async () => {
+    if (!toCancel) return;
+    const sessionId = toCancel.sessionId;
     setCancellingId(sessionId);
     try {
       const res = await fetch("/api/dashboard/schedule/book", {
@@ -100,100 +88,170 @@ export default function BookingsPage() {
         credentials: "include",
         body: JSON.stringify({ sessionId }),
       });
-      const json = await res.json();
-
+      const json = await res.json().catch(() => ({}));
       if (res.ok) {
-        showToast("Réservation annulée", "success");
-        fetchBookings(false);
+        toast.success("Réservation annulée.");
+        setToCancel(null);
+        setDetails(null);
+        void fetchBookings(false);
       } else {
-        showToast(json.error || "Erreur d'annulation", "error");
+        toast.error(json.error || "L’annulation a échoué. Réessayez.");
+        setToCancel(null);
       }
     } catch {
-      showToast("Erreur serveur", "error");
+      toast.error("Connexion impossible. Votre réservation n’a pas été modifiée.");
+      setToCancel(null);
     } finally {
       setCancellingId(null);
     }
   };
 
+  const activities = useMemo(() => {
+    if (!data) return [] as string[];
+    return Array.from(new Set([...data.upcoming, ...data.past, ...data.cancelled].map((b) => b.session.activity))).sort();
+  }, [data]);
+
+  const list = useMemo(
+    () => (data ? filterBookings(data[activeTab], { query, activity, activityLabels: ACTIVITY_LABELS }) : []),
+    [data, activeTab, query, activity]
+  );
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 size={44} className="animate-spin text-[var(--primary)]" />
-          <p className="text-sm text-muted">Chargement de vos réservations...</p>
-        </div>
+      <div className="space-y-5" aria-busy="true" aria-label="Chargement de vos réservations">
+        <Skeleton className="h-10 w-72" />
+        <div className="grid gap-3 sm:grid-cols-3">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-24" rounded="rounded-2xl" />)}</div>
+        {[0, 1, 2].map((i) => <Skeleton key={i} className="h-24" rounded="rounded-2xl" />)}
       </div>
     );
   }
 
-  const counts = {
-    upcoming: data?.upcoming.length ?? 0,
-    past: data?.past.length ?? 0,
-    cancelled: data?.cancelled.length ?? 0,
-  };
+  if (loadError || !data) {
+    return (
+      <div className="mx-auto mt-10 max-w-md">
+        <EmptyState
+          icon={AlertTriangle}
+          title="Impossible d’afficher vos réservations"
+          description={loadError ?? "Une erreur est survenue."}
+          action={<button onClick={() => void fetchBookings(true)} className="mx-cta px-5 py-2.5 text-sm"><RefreshCw size={15} aria-hidden />Réessayer</button>}
+        />
+      </div>
+    );
+  }
 
-  const currentList = data ? data[activeTab] : [];
-
-  const emptyMessages: Record<BookingTab, string> = {
-    upcoming: "Aucune réservation à venir. Direction le planning pour réserver une session !",
-    past: "Aucun historique de session pour le moment.",
-    cancelled: "Aucune réservation annulée.",
-  };
+  const counts = { upcoming: data.upcoming.length, past: data.past.length, cancelled: data.cancelled.length };
+  const filtering = query.trim() !== "" || activity !== "ALL";
+  const overview = [
+    { key: "upcoming" as const, label: "À venir", icon: CalendarCheck, tint: "green" },
+    { key: "past" as const, label: "Historique", icon: History, tint: "blue" },
+    { key: "cancelled" as const, label: "Annulées", icon: Ban, tint: "purple" },
+  ];
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-3xl sm:text-4xl font-bold text-primary">Mes Réservations</h1>
-          <p className="mt-1 text-muted">Consultez et gérez vos sessions réservées.</p>
+          <h1 className="text-3xl font-extrabold text-primary sm:text-4xl">Mes réservations</h1>
+          <p className="mt-1 text-muted">Consultez, gérez et retrouvez toutes vos séances réservées.</p>
         </div>
-        <button
-          onClick={() => fetchBookings(false)}
-          disabled={isRefreshing}
-          className="flex items-center gap-2 px-4 py-2.5 text-sm bg-muted hover:bg-muted/70 rounded-xl transition-colors disabled:opacity-50 font-medium self-start sm:self-auto"
-        >
-          {isRefreshing ? (
-            <Loader2 size={16} className="animate-spin" />
-          ) : (
-            <RefreshCw size={16} />
-          )}
-          {isRefreshing ? "Actualisation..." : "Actualiser"}
-        </button>
+        <div className="flex gap-2">
+          <button onClick={() => void fetchBookings(false)} disabled={isRefreshing} className="mx-ghost px-4 py-2.5 text-sm">
+            {isRefreshing ? <Loader2 size={15} className="animate-spin" aria-hidden /> : <RefreshCw size={15} aria-hidden />}
+            {isRefreshing ? "Actualisation…" : "Actualiser"}
+          </button>
+          <Link href="/dashboard/schedule" className="mx-cta px-4 py-2.5 text-sm">Réserver une séance</Link>
+        </div>
       </div>
 
-      <BookingTabs active={activeTab} onChange={setActiveTab} counts={counts} />
+      <section aria-label="Aperçu" className="grid gap-3 sm:grid-cols-3">
+        {overview.map(({ key, label, icon: Icon, tint }, i) => (
+          <button key={key} onClick={() => setActiveTab(key)} className={`mx-kpi mx-tint-${tint} mx-rise flex items-center gap-3 p-4 text-left`} style={{ ["--i" as string]: i } as React.CSSProperties} aria-pressed={activeTab === key}>
+            <span className="mx-kpi-icon"><Icon size={22} aria-hidden /></span>
+            <span>
+              <span className="block text-3xl font-extrabold leading-none text-primary">{counts[key]}</span>
+              <span className="text-sm text-muted">{label}</span>
+            </span>
+          </button>
+        ))}
+      </section>
 
-      {currentList.length === 0 ? (
-        <div className="bg-card border border-border rounded-2xl flex flex-col items-center justify-center py-16 gap-4">
-          <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
-            <CalendarX size={28} className="text-muted" />
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <BookingTabs active={activeTab} onChange={setActiveTab} counts={counts} />
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <div className="relative sm:w-64">
+            <label htmlFor="booking-search" className="sr-only">Rechercher une réservation</label>
+            <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" aria-hidden />
+            <input id="booking-search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Activité, coach, lieu…" className="mx-input pl-9" />
           </div>
-          <p className="text-muted text-center max-w-sm">{emptyMessages[activeTab]}</p>
-          {activeTab === "upcoming" && (
-            <a
-              href="/dashboard/schedule"
-              className="px-6 py-2.5 bg-[var(--primary)] text-white rounded-xl hover:bg-[var(--primary-dark)] transition-colors text-sm font-medium"
-            >
-              Voir le planning
-            </a>
-          )}
+          <div>
+            <label htmlFor="booking-activity" className="sr-only">Filtrer par activité</label>
+            <select id="booking-activity" value={activity} onChange={(e) => setActivity(e.target.value)} className="mx-input sm:w-48">
+              <option value="ALL">Toutes les activités</option>
+              {activities.map((a) => <option key={a} value={a}>{ACTIVITY_LABELS[a] ?? a}</option>)}
+            </select>
+          </div>
         </div>
+      </div>
+
+      {list.length === 0 ? (
+        filtering ? (
+          <EmptyState icon={Search} title="Aucun résultat" description="Aucune réservation ne correspond à votre recherche." action={<button onClick={() => { setQuery(""); setActivity("ALL"); }} className="mx-ghost px-4 py-2 text-sm">Effacer les filtres</button>} />
+        ) : (
+          <EmptyState
+            icon={CalendarX}
+            title={EMPTY[activeTab].title}
+            description={EMPTY[activeTab].description}
+            action={activeTab !== "past" ? <Link href="/dashboard/schedule" className="mx-cta px-5 py-2.5 text-sm">Voir le planning</Link> : undefined}
+          />
+        )
       ) : (
-        <div className="space-y-3">
-          {currentList.map((booking) => (
-            <BookingCard
-              key={booking.id}
-              booking={booking}
-              onCancel={activeTab === "upcoming" ? handleCancel : undefined}
-              cancelling={cancellingId === booking.sessionId}
-            />
+        <ul className="space-y-3" aria-live="polite">
+          {list.map((booking) => (
+            <li key={booking.id}>
+              <BookingCard
+                booking={booking}
+                tab={activeTab}
+                nowMs={nowMs}
+                onDetails={setDetails}
+                onCancel={() => setToCancel(booking)}
+                cancelling={cancellingId === booking.sessionId}
+              />
+            </li>
           ))}
-        </div>
+        </ul>
       )}
 
-      {toast && (
-        <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
+      {details && (
+        <BookingDetailsModal
+          booking={details}
+          tab={activeTab}
+          nowMs={nowMs}
+          timeZone={data.timeZone ?? "Africa/Tunis"}
+          cancelling={cancellingId === details.sessionId}
+          onClose={() => setDetails(null)}
+          onCancel={() => setToCancel(details)}
+        />
+      )}
+
+      {toCancel && (
+        <ConfirmDialog
+          title="Annuler cette réservation ?"
+          description={`${ACTIVITY_LABELS[toCancel.session.activity] ?? toCancel.session.activity} · ${toCancel.session.startTime} – ${toCancel.session.endTime}. Votre place sera libérée pour les autres membres.`}
+          confirmLabel="Oui, annuler"
+          cancelLabel="Garder ma place"
+          loading={cancellingId === toCancel.sessionId}
+          onConfirm={() => void confirmCancel()}
+          onCancel={() => setToCancel(null)}
+        />
       )}
     </div>
+  );
+}
+
+export default function BookingsPage() {
+  return (
+    <ToastProvider>
+      <BookingsContent />
+    </ToastProvider>
   );
 }

@@ -8,6 +8,7 @@ import { adminNotificationSchema, cuidSchema, formatZodError } from "@/lib/valid
 import { sendEmail } from "@/lib/email";
 import { sendSms } from "@/lib/sms";
 import { sendPushToUsers } from "@/lib/push";
+import { publishNotifications } from "@/lib/notify";
 import { runAfter } from "@/lib/after";
 
 // POST /api/admin/notifications
@@ -96,7 +97,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: "Aucun destinataire trouvé", count: 0 });
     }
 
-    const result = await prisma.notification.createMany({
+    const notifications = await prisma.notification.createManyAndReturn({
       data: userIds.map((userId) => ({
         clubId: admin.clubId as string,
         userId,
@@ -108,16 +109,18 @@ export async function POST(request: NextRequest) {
     });
 
     // ── PUSH (phones) ───────────────────────────────────────────────────
-    // Every site notification is also delivered as a real push to the
-    // recipients' registered devices (those who turned push off, or have no
-    // device registered, are skipped inside sendPushToUsers). Club-scoped.
+    // Publish the persisted rows to connected SSE clients and deliver a
+    // matching push to registered devices.
     const announcementClubId = admin.clubId as string;
     runAfter(() =>
+      Promise.all([
+        publishNotifications(notifications),
         sendPushToUsers(announcementClubId, userIds, {
           title,
           body: message,
           data: { type: type ?? "INFO", kind: "announcement" },
-        })
+        }),
+      ])
     );
 
     // ── EMAIL / SMS dispatch ────────────────────────────────────────────
@@ -187,12 +190,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const parts = [`Notification envoyée à ${result.count} membre(s)`];
+    const parts = [`Notification envoyée à ${notifications.length} membre(s)`];
     if (wantsEmail) parts.push(`${emailsSent} e-mail(s) envoyé(s)`);
     if (wantsSms) parts.push(`${smsSent} SMS envoyé(s)`);
 
     return NextResponse.json(
-        { message: parts.join(", "), count: result.count, emailsSent, smsSent },
+        { message: parts.join(", "), count: notifications.length, emailsSent, smsSent },
         { status: 201 }
     );
   } catch (error) {

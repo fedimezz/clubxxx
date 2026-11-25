@@ -251,7 +251,7 @@ function PostCard({
 
 export default function ActualitesPage() {
   const { isLoggedIn, user } = useAuth();
-  const { t, img } = useEditableContent("actualites");
+  const { t, img, imageStyle } = useEditableContent("actualites");
   const heroImage = img("heroImage", "");
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
@@ -296,7 +296,7 @@ export default function ActualitesPage() {
         {heroImage && (
           <>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={heroImage} alt="" className="absolute inset-0 w-full h-full object-cover" />
+            <img src={heroImage} alt="" className="absolute inset-0 w-full h-full object-cover" style={imageStyle("heroImage")} />
             <div className="absolute inset-0 bg-black/55" />
           </>
         )}

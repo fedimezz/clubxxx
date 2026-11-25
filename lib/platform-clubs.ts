@@ -182,6 +182,7 @@ export async function provisionClub(input: {
         slug: input.slug,
         status: "TRIAL",
         trialEndsAt,
+        storage: { create: { inventoryCompletedAt: now } },
         ...(input.customDomain ? { customDomain: input.customDomain } : {}),
       },
     });

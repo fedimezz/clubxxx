@@ -216,20 +216,23 @@ export async function DELETE(request: NextRequest) {
 
     const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const existing = await tx.userSession.findUnique({
-        where: { userId_sessionId: { userId, sessionId } },
+        where: { userId_sessionId: { userId, sessionId }, clubId },
       });
 
       if (!existing || existing.isCancelled) {
         throw new Error("NOT_BOOKED");
       }
 
-      await tx.userSession.update({
-        where: { id: existing.id },
+      const cancellation = await tx.userSession.updateMany({
+        where: { id: existing.id, userId, clubId, isCancelled: false },
         data: { isCancelled: true, cancelledAt: new Date() },
       });
+      if (cancellation.count === 0) throw new Error("NOT_BOOKED");
 
       // Same atomic-UPDATE pattern as booking, and guarded at 0 so a
       // duplicate/racing cancel can never push currentBookings negative.
+      // The conditional booking update above makes sure only the request
+      // that transitions an active booking can release its capacity slot.
       // clubId in the WHERE clause for the same reason as the booking
       // route above — never trust that a sessionId that matched the
       // (userId, sessionId) unique above actually belongs to this gym

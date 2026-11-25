@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, type CSSProperties } from "react";
 import { fetchPublicJson } from "@/lib/public-fetch";
+import { DEFAULT_IMAGE_POSITION, IMAGE_POSITION_MAP_KEY, imagePositionKey, parseImagePositionMap } from "@/lib/image-position";
 
 export function useEditableContent(pageKey: string) {
   const [content, setContent] = useState<Record<string, string>>({});
@@ -54,5 +55,13 @@ export function useEditableContent(pageKey: string) {
     }
   }, [content]);
 
-  return { t, img: t, list, content, loading };
+  const imageStyle = useCallback((key: string, index?: number): CSSProperties => {
+    const position = parseImagePositionMap(content[IMAGE_POSITION_MAP_KEY])[imagePositionKey(key, index)] ?? DEFAULT_IMAGE_POSITION;
+    return {
+      objectPosition: `${position.x}% ${position.y}%`,
+      ...(position.zoom === 1 ? {} : { transform: `scale(${position.zoom})` }),
+    };
+  }, [content]);
+
+  return { t, img: t, list, imageStyle, content, loading };
 }

@@ -31,7 +31,7 @@ export default function ActivityFilter({ selected, onSelect }: Props) {
         onClick={() => onSelect(null)}
         className={`flex-shrink-0 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
           selected === null
-            ? "bg-[var(--primary)] text-white shadow-sm"
+            ? "bg-[var(--primary)] text-[var(--brand-contrast)] shadow-sm"
             : "bg-muted text-muted hover:bg-muted/70"
         }`}
       >
@@ -43,7 +43,7 @@ export default function ActivityFilter({ selected, onSelect }: Props) {
           onClick={() => onSelect(activity)}
           className={`flex-shrink-0 px-4 py-2 rounded-xl text-sm font-medium transition-all whitespace-nowrap ${
             selected === activity
-              ? "bg-[var(--primary)] text-white shadow-sm"
+              ? "bg-[var(--primary)] text-[var(--brand-contrast)] shadow-sm"
               : "bg-muted text-muted hover:bg-muted/70"
           }`}
         >

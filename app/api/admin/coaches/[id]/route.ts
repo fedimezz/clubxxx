@@ -38,7 +38,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         phone: phone || existing.phone,
         inviter: { id: auth.user.id, name: auth.user.name },
         requestUrl: request.url,
-      });
+      }, (tx, newUserId) =>
+        tx.coach.update({ where: { id: existing.id }, data: { userId: newUserId } })
+      );
       if (!account.ok) return NextResponse.json({ error: account.error }, { status: account.status });
       userId = account.userId;
       invitationSent = account.invitationSent;

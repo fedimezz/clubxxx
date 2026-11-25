@@ -6,6 +6,7 @@ import { PAGE_CONTENT_SCHEMA, MAX_GALLERY_IMAGES } from "@/lib/page-content-sche
 import { formatZodError, pageContentEnvelopeSchema } from "@/lib/validation";
 import { denyIfWebsiteLocked } from "@/lib/website-setup";
 import { safeImageList, safeImageUrl } from "@/lib/image-url";
+import { IMAGE_POSITION_MAP_KEY, sanitizeImagePositionMap } from "@/lib/image-position";
 
 export async function GET(request: NextRequest) {
   try {
@@ -47,6 +48,13 @@ export async function PUT(request: NextRequest) {
     const imageKeys = new Set(def.fields.filter((f) => f.type === "image").map((f) => f.key));
     const clean: Record<string, string> = {};
     for (const [key, value] of Object.entries(content)) {
+      if (key === IMAGE_POSITION_MAP_KEY) {
+        if (typeof value !== "string") {
+          return NextResponse.json({ error: "Positions d'image invalides" }, { status: 400 });
+        }
+        clean[key] = sanitizeImagePositionMap(value, imageKeys, galleryKeys);
+        continue;
+      }
       if (!allowedKeys.has(key) || typeof value !== "string") continue;
       if (galleryKeys.has(key)) {
         // A gallery is a JSON array of photo URLs, capped server-side so the

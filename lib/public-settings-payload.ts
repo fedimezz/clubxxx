@@ -21,7 +21,7 @@ export const PUBLIC_SETTINGS_DEFAULTS = {
   facebookUrl: null, instagramUrl: null, tiktokUrl: null,
   twitterUrl: null, youtubeUrl: null, websiteUrl: null,
   phone: null, email: null, address: null,
-  themeId: "modern", heroModel: null, heroMode: "builtin", heroCustomModel: null,
+  themeId: "premium-glass", heroModel: null, heroMode: "builtin", heroCustomModel: null,
 } as const;
 
 export type PublicSettingsPayload = Record<string, unknown> & { hasTenant: boolean };

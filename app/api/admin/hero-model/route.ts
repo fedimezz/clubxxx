@@ -16,6 +16,7 @@ import { designLockedResponse, findActiveGrant, isDesignLockError } from "@/lib/
 import { invalidatePublicSettings } from "@/lib/club-public-settings";
 import { getHeroModelMeta, invalidateHeroModelMeta, metaToTransform, heroModelUrl } from "@/lib/hero-model-server";
 import { logAction } from "@/lib/activity-log";
+import { getLockedStorageSnapshot, storageQuotaAllows, storageQuotaResponse } from "@/lib/storage-quota";
 import {
   getHeroModelMaxBytes,
   HERO_TRANSFORM_RANGES as R,
@@ -161,21 +162,41 @@ export async function POST(request: NextRequest) {
     };
     // A new file keeps the owner's placement only if they upload the same model
     // again; a different model starts from the neutral transform.
-    const previous = await prisma.clubHeroModel.findUnique({ where: { clubId }, select: { sha256: true } });
-    const reset = previous?.sha256 !== sha256;
+    let uploadResult:
+      | { ok: true; model: { id: string } }
+      | { ok: false; code: "INVENTORY_REQUIRED" | "NO_ACTIVE_PLAN" | "QUOTA_EXCEEDED" };
     try {
-      await prisma.clubHeroModel.upsert({
-        where: { clubId },
-        create: { clubId, ...data },
-        update: {
-          ...data,
-          ...(reset && { scale: 1, rotationX: 0, rotationY: 0, rotationZ: 0, positionX: 0, positionY: 0, positionZ: 0, autoRotate: true }),
-        },
-        select: { id: true },
+      uploadResult = await prisma.$transaction(async (tx) => {
+        const snapshot = await getLockedStorageSnapshot(tx, clubId);
+        if (!snapshot.ok) return snapshot;
+
+        const previous = await tx.clubHeroModel.findUnique({
+          where: { clubId },
+          select: { sha256: true, byteSize: true },
+        });
+        if (!storageQuotaAllows(snapshot, BigInt(bytes.byteLength), BigInt(previous?.byteSize ?? 0))) {
+          return { ok: false as const, code: "QUOTA_EXCEEDED" as const };
+        }
+
+        const reset = previous?.sha256 !== sha256;
+        const model = await tx.clubHeroModel.upsert({
+          where: { clubId },
+          create: { clubId, ...data },
+          update: {
+            ...data,
+            ...(reset && { scale: 1, rotationX: 0, rotationY: 0, rotationZ: 0, positionX: 0, positionY: 0, positionZ: 0, autoRotate: true }),
+          },
+          select: { id: true },
+        });
+        return { ok: true as const, model };
       });
     } catch (e) {
       if (isDesignLockError(e)) return designLockedResponse();
       throw e;
+    }
+    if (!uploadResult.ok) {
+      const response = storageQuotaResponse(uploadResult.code);
+      return NextResponse.json({ error: response.error, code: uploadResult.code }, { status: response.status });
     }
 
     invalidateHeroModelMeta(clubId);

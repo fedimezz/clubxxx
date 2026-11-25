@@ -3,7 +3,7 @@
 // Theme-specific presentation of the club's formulas. The data (plans, prices, links) is identical
 // for every theme — only the layout language changes (see app/themes-identity.css, `pv-*`):
 //   plates → Musculation · scoreboard → CrossFit · fight-card → Boxing & MMA · soft-cards → Yoga
-//   bento-tiles → Fitness Moderne · engraved → Luxury Club · hud-cards → Neon · stickers → Urban
+//   bento-tiles → Premium Glass · engraved → Classic Elegant · console-list → Neon · stickers → Urban
 //   typographic → Minimal Elite
 // "default" (and any unknown value) falls back to the shared horizontal PlanRowCard list.
 import Link from "next/link";
@@ -155,6 +155,27 @@ export default function PricingVariants({ variant, plans, href, ctaLabel, popula
                 <Cta href={href} label={ctaLabel} />
               </div>
             </div>
+          ))}
+        </div>
+      );
+
+    case "console-list":
+      return (
+        <div className="pv-console mx-auto max-w-4xl divide-y divide-[var(--brand)]/30">
+          {plans.map((p, i) => (
+            <article key={p.id} className="pv-console-row grid gap-5 p-5 sm:grid-cols-[4.5rem_minmax(0,1fr)_auto] sm:items-center">
+              <span className="font-mono text-sm font-bold tracking-widest text-[var(--brand-2,var(--brand))]">{`SYS_${String(i + 1).padStart(2, "0")}`}</span>
+              <div>
+                <h3 className="theme-heading text-xl text-[var(--text-primary)]">{p.name}</h3>
+                {p.description && <p className="mt-1 text-sm text-[var(--text-secondary)]">{p.description}</p>}
+                <Features items={p.features.slice(0, 3)} className="mt-3 text-[var(--text-secondary)]" />
+              </div>
+              <div className="sm:text-right">
+                <p className="theme-heading text-2xl text-[var(--brand)]">{p.price}</p>
+                <p className="mb-3 text-[0.65rem] uppercase tracking-[0.25em] text-[var(--text-secondary)]">{p.period}</p>
+                <Cta href={href} label={ctaLabel} />
+              </div>
+            </article>
           ))}
         </div>
       );

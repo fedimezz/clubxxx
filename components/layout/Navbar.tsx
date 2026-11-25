@@ -106,6 +106,7 @@ export function Navbar() {
     <>
       <nav
         data-nav={navVariant}
+        aria-label="Navigation principale"
         className={`fixed top-0 z-50 w-full transition-all duration-500 ${scrolled ? "theme-nav" : ""} ${
           scrolled
             ? isDark
@@ -292,6 +293,10 @@ export function Navbar() {
               </button>
               <button
                 onClick={() => setIsOpen(!isOpen)}
+                type="button"
+                aria-label={isOpen ? "Fermer le menu" : "Ouvrir le menu"}
+                aria-expanded={isOpen}
+                aria-controls="club-mobile-navigation"
                 className={`p-2.5 rounded-full border ${isDark ? "bg-slate-900 border-slate-800 text-white" : "bg-slate-100 border-slate-200 text-slate-800"}`}
               >
                 {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -303,9 +308,9 @@ export function Navbar() {
 
       {/* Mobile Drawer */}
       {isOpen && (
-        <div className="fixed inset-0 z-40 lg:hidden animate-fade-in">
+        <div id="club-mobile-navigation" data-mobile-navigation={navVariant} className="fixed inset-0 z-40 lg:hidden animate-fade-in">
           <div className="fixed inset-0 bg-slate-950/75 backdrop-blur-sm" onClick={() => setIsOpen(false)} />
-          <div className={`fixed right-0 top-0 h-full w-72 shadow-2xl p-6 border-l backdrop-blur-2xl ${
+          <div className={`nav-mobile-panel fixed right-0 top-0 h-full w-72 shadow-2xl p-6 border-l backdrop-blur-2xl ${
             isDark ? "bg-[#090d16]/95 border-slate-800 text-slate-100" : "bg-white/95 border-slate-200 text-slate-900"
           }`}>
             <div className="flex flex-col space-y-4 mt-12">
@@ -314,6 +319,7 @@ export function Navbar() {
                   key={item.name}
                   href={item.href}
                   onClick={() => setIsOpen(false)}
+                  aria-current={pathname === item.href ? "page" : undefined}
                   className={`text-sm font-semibold py-2 px-3 rounded-xl transition ${
                     pathname === item.href
                       ? "bg-emerald-500/10 text-emerald-500 font-bold"

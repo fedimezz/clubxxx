@@ -71,7 +71,7 @@ export default function CalendarToolbar({ cal, right }: { cal: CalendarState; ri
               aria-selected={cal.view === v}
               onClick={() => cal.setView(v)}
               className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors ${
-                cal.view === v ? "bg-[var(--primary)] text-white" : "text-muted hover:text-primary"
+                cal.view === v ? "bg-[var(--primary)] text-[var(--brand-contrast)]" : "text-muted hover:text-primary"
               }`}
             >
               {VIEW_LABELS[v]}

@@ -97,8 +97,16 @@ export async function POST(request: NextRequest) {
 
     const { name, bio, photoUrl, specialties, phone, createAccount, email, linkUserId } = parsed.data;
 
-    let userId: string | null = null;
     let invitationSent: boolean | null = null; // null = no account was invited
+    const coachData = {
+      clubId: auth.user.clubId as string,
+      name,
+      bio: bio || null,
+      photoUrl: photoUrl || null,
+      specialties: specialties ?? [],
+      phone: phone || null,
+    };
+    let coach: Awaited<ReturnType<typeof prisma.coach.create>>;
 
     if (linkUserId) {
       // An admin/owner who also teaches: the Coach profile points at their existing
@@ -110,7 +118,7 @@ export async function POST(request: NextRequest) {
       if (!staff) return NextResponse.json({ error: "Compte admin introuvable" }, { status: 400 });
       const already = await prisma.coach.findFirst({ where: { userId: staff.id }, select: { id: true } });
       if (already) return NextResponse.json({ error: "Ce compte a déjà un profil coach" }, { status: 409 });
-      userId = staff.id;
+      coach = await prisma.coach.create({ data: { ...coachData, userId: staff.id } });
     } else if (createAccount) {
       const account = await createInvitedCoachAccount({
         clubId: auth.user.clubId as string,
@@ -119,23 +127,15 @@ export async function POST(request: NextRequest) {
         phone,
         inviter: { id: auth.user.id, name: auth.user.name },
         requestUrl: request.url,
-      });
+      }, (tx, userId) =>
+        tx.coach.create({ data: { ...coachData, userId } })
+      );
       if (!account.ok) return NextResponse.json({ error: account.error }, { status: account.status });
-      userId = account.userId;
+      coach = account.coach;
       invitationSent = account.invitationSent;
+    } else {
+      coach = await prisma.coach.create({ data: { ...coachData, userId: null } });
     }
-
-    const coach = await prisma.coach.create({
-      data: {
-        clubId: auth.user.clubId as string,
-        name,
-        bio: bio || null,
-        photoUrl: photoUrl || null,
-        specialties: specialties ?? [],
-        phone: phone || null,
-        userId,
-      },
-    });
 
     runAfter(() =>
       logAction(request, {

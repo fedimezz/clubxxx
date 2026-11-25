@@ -15,6 +15,7 @@ const heroDeleteMany = vi.fn();
 const settingsUpdateMany = vi.fn();
 const settingsFindUnique = vi.fn();
 const settingsUpdate = vi.fn();
+let storageQuotaAllowed = true;
 vi.mock("@/lib/prisma", () => {
   const prisma = {
     user: { findUnique: (...a: unknown[]) => userFindUnique(...a) },
@@ -31,10 +32,25 @@ vi.mock("@/lib/prisma", () => {
       update: (...a: unknown[]) => settingsUpdate(...a),
       updateMany: (...a: unknown[]) => settingsUpdateMany(...a),
     },
-    $transaction: async (ops: unknown[]) => Promise.all(ops),
+    $transaction: async (ops: unknown[] | ((tx: unknown) => Promise<unknown>)) => {
+      if (typeof ops === "function") {
+        return ops({
+          clubHeroModel: {
+            findUnique: (...a: unknown[]) => heroFindUnique(...a),
+            upsert: (...a: unknown[]) => heroUpsert(...a),
+          },
+        });
+      }
+      return Promise.all(ops);
+    },
   };
   return { default: prisma };
 });
+vi.mock("@/lib/storage-quota", () => ({
+  getLockedStorageSnapshot: async () => ({ ok: true, usedBytes: BigInt(0), limitBytes: null }),
+  storageQuotaAllows: () => storageQuotaAllowed,
+  storageQuotaResponse: () => ({ status: 402, error: "Storage quota reached" }),
+}));
 vi.mock("@/lib/website-setup", () => ({ denyIfWebsiteLocked: async () => null }));
 // Plan feature "customHeroModel": flipped per test. The real guard is covered in lib/__tests__/plan-feature-guard.test.ts.
 let customAllowed = true;
@@ -93,6 +109,7 @@ const META = {
 beforeEach(() => {
   vi.clearAllMocks();
   clearAccountCache();
+  storageQuotaAllowed = true;
   clubFindUnique.mockResolvedValue(club);
   settingsFindUnique.mockResolvedValue({ clubId: "club_a" });
   tenantMock.mockResolvedValue({ ...club, customDomain: null });
@@ -121,6 +138,13 @@ describe("POST /api/admin/hero-model", () => {
     form.append("clubId", "club_evil");
     await admin.POST(authed("OWNER", "POST", form, {}, "https://club-a.example.test/api/admin/hero-model?clubId=club_evil"));
     expect(heroUpsert.mock.calls[0][0].where).toEqual({ clubId: "club_a" });
+  });
+
+  it("enforces the storage quota for database-stored custom models", async () => {
+    storageQuotaAllowed = false;
+    const res = await admin.POST(upload("OWNER", "m.glb", glb()));
+    expect(res.status).toBe(402);
+    expect(heroUpsert).not.toHaveBeenCalled();
   });
 
   it("rejects fake / invalid / oversized files with a clear 400/413", async () => {

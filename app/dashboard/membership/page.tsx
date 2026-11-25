@@ -233,7 +233,7 @@ export default function MembershipPage() {
         <p className="text-muted">Impossible de charger les données.</p>
         <button
           onClick={() => fetchMembership(true)}
-          className="px-6 py-2.5 bg-[var(--primary)] text-white rounded-xl hover:bg-[var(--primary-dark)] transition-colors text-sm font-medium"
+          className="px-6 py-2.5 bg-[var(--primary)] text-[var(--brand-contrast)] rounded-xl hover:bg-[var(--primary-dark)] transition-colors text-sm font-medium"
         >
           Réessayer
         </button>

@@ -79,10 +79,18 @@ export default function ProfileAvatar({
         body: formData,
       });
 
+      const uploadData = await uploadRes.json().catch(() => null);
+      if (!uploadRes.ok && uploadData?.code !== "STORAGE_NOT_CONFIGURED") {
+        setUploadError(uploadData?.error || "Impossible de téléverser la photo.");
+        return;
+      }
+
       if (uploadRes.ok) {
-        const uploadData = await uploadRes.json();
         if (uploadData?.url) {
           avatarValue = uploadData.url; // Cloudinary URL
+        } else {
+          setUploadError("La réponse du service de stockage est invalide.");
+          return;
         }
       }
 

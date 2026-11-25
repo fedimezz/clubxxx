@@ -7,9 +7,13 @@ describe("themes and standard 3D models are included in every plan", () => {
     expect(HERO_MODELS.some((m) => "premium" in m)).toBe(false);
   });
 
-  it("every selectable theme (including Gold Elite, Cyber Pulse, Aurora Glass) can be chosen", () => {
+  it("offers exactly the nine current designs and keeps previous IDs as aliases", () => {
+    expect(SELECTABLE_THEME_PRESETS.map((theme) => theme.id)).toEqual([
+      "modern-fitness", "premium-glass", "energetic-red", "clean-minimal", "sporty-dark-blue",
+      "nature-wellness", "neon-purple", "classic-elegant", "bold-black-yellow",
+    ]);
+    expect(SELECTABLE_THEME_PRESETS).toHaveLength(9);
     for (const id of ["gold", "cyber", "aurora"]) expect(isSelectableThemeId(id)).toBe(true);
-    expect(SELECTABLE_THEME_PRESETS.map((t) => t.id)).toEqual(expect.arrayContaining(["gold", "cyber", "aurora"]));
   });
 
   it("still contains the formerly premium 3D models", () => {

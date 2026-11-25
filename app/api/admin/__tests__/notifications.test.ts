@@ -21,8 +21,23 @@ vi.mock("@/lib/sms", () => ({
   sendSms: (...args: unknown[]) => sendSmsMock(...args),
 }));
 
+const publishNotificationsMock = vi.fn().mockResolvedValue(undefined);
+vi.mock("@/lib/notify", () => ({
+  publishNotifications: (...args: unknown[]) => publishNotificationsMock(...args),
+}));
+
+const sendPushToUsersMock = vi.fn().mockResolvedValue(undefined);
+vi.mock("@/lib/push", () => ({
+  sendPushToUsers: (...args: unknown[]) => sendPushToUsersMock(...args),
+}));
+
+const afterTasks: Array<() => Promise<unknown> | unknown> = [];
+vi.mock("@/lib/after", () => ({
+  runAfter: (task: () => Promise<unknown> | unknown) => afterTasks.push(task),
+}));
+
 const userFindManyMock = vi.fn();
-const notificationCreateManyMock = vi.fn();
+const notificationCreateManyAndReturnMock = vi.fn();
 const notificationFindManyMock = vi.fn();
 const notificationDeleteMock = vi.fn();
 
@@ -30,7 +45,7 @@ vi.mock("@/lib/prisma", () => ({
   default: {
     user: { findMany: (...args: unknown[]) => userFindManyMock(...args), findUnique: vi.fn() },
     notification: {
-      createMany: (...args: unknown[]) => notificationCreateManyMock(...args),
+      createManyAndReturn: (...args: unknown[]) => notificationCreateManyAndReturnMock(...args),
       findMany: (...args: unknown[]) => notificationFindManyMock(...args),
       delete: (...args: unknown[]) => notificationDeleteMock(...args),
     },
@@ -39,7 +54,7 @@ vi.mock("@/lib/prisma", () => ({
 
 const { POST } = await import("../notifications/route");
 
-const ADMIN = { id: "admin_1", email: "admin@club.test", role: "ADMIN", name: "Admin" };
+const ADMIN = { id: "admin_1", email: "admin@club.test", role: "ADMIN", name: "Admin", clubId: "club_A" };
 
 function makeRequest(body: unknown): NextRequest {
   return new NextRequest("https://example.test/api/admin/notifications", {
@@ -51,6 +66,15 @@ function makeRequest(body: unknown): NextRequest {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  afterTasks.length = 0;
+  notificationCreateManyAndReturnMock.mockImplementation(async ({ data }: { data: Record<string, unknown>[] }) =>
+    data.map((notification, index) => ({
+      id: `notification-${index + 1}`,
+      isRead: false,
+      sentAt: new Date("2026-11-25T10:00:00.000Z"),
+      ...notification,
+    }))
+  );
   requireAdminMock.mockResolvedValue({ ok: true, user: ADMIN });
   hasPermissionMock.mockResolvedValue(true);
 });
@@ -66,7 +90,7 @@ describe("POST /api/admin/notifications — auth & validation", () => {
     hasPermissionMock.mockResolvedValueOnce(false);
     const res = await POST(makeRequest({ title: "t", message: "m", target: "ALL" }));
     expect(res.status).toBe(403);
-    expect(notificationCreateManyMock).not.toHaveBeenCalled();
+    expect(notificationCreateManyAndReturnMock).not.toHaveBeenCalled();
   });
 
   it("rejects an empty title/message with a 400, not a 500", async () => {
@@ -78,7 +102,6 @@ describe("POST /api/admin/notifications — auth & validation", () => {
 describe("POST /api/admin/notifications — SITE-only (default channel)", () => {
   it("creates a site notification per member and never touches email/SMS", async () => {
     userFindManyMock.mockResolvedValueOnce([{ id: "u1" }, { id: "u2" }]);
-    notificationCreateManyMock.mockResolvedValueOnce({ count: 2 });
 
     const res = await POST(makeRequest({ title: "Hi", message: "Hello", target: "ALL" }));
     expect(res.status).toBe(201);
@@ -89,6 +112,13 @@ describe("POST /api/admin/notifications — SITE-only (default channel)", () => 
     // Only one findMany for resolving the "ALL" target — no second lookup
     // for email/SMS recipients since neither channel was requested.
     expect(userFindManyMock).toHaveBeenCalledTimes(1);
+    expect(afterTasks).toHaveLength(1);
+    await afterTasks[0]();
+    expect(publishNotificationsMock).toHaveBeenCalledWith([
+      expect.objectContaining({ id: "notification-1", userId: "u1", clubId: "club_A" }),
+      expect.objectContaining({ id: "notification-2", userId: "u2", clubId: "club_A" }),
+    ]);
+    expect(sendPushToUsersMock).toHaveBeenCalledWith("club_A", ["u1", "u2"], expect.any(Object));
   });
 });
 
@@ -96,7 +126,6 @@ describe("POST /api/admin/notifications — EMAIL/SMS dispatch (this session's n
   it("sends email only to members who haven't opted out, skips those without an address", async () => {
     // First findMany resolves the "ALL" target list of ids.
     userFindManyMock.mockResolvedValueOnce([{ id: "u1" }, { id: "u2" }, { id: "u3" }]);
-    notificationCreateManyMock.mockResolvedValueOnce({ count: 3 });
     // Second findMany fetches email/phone/preferences for dispatch.
     userFindManyMock.mockResolvedValueOnce([
       { id: "u1", email: "u1@test.com", phone: null, preferences: { emailNotifications: true, smsNotifications: false } },
@@ -119,7 +148,6 @@ describe("POST /api/admin/notifications — EMAIL/SMS dispatch (this session's n
 
   it("respects the SMS opt-in default (false) — a user with no preferences row gets no SMS", async () => {
     userFindManyMock.mockResolvedValueOnce([{ id: "u1" }]);
-    notificationCreateManyMock.mockResolvedValueOnce({ count: 1 });
     userFindManyMock.mockResolvedValueOnce([
       { id: "u1", email: null, phone: "+21612345678", preferences: null },
     ]);
@@ -134,7 +162,6 @@ describe("POST /api/admin/notifications — EMAIL/SMS dispatch (this session's n
 
   it("sends SMS when a user has explicitly opted in and has a phone number", async () => {
     userFindManyMock.mockResolvedValueOnce([{ id: "u1" }]);
-    notificationCreateManyMock.mockResolvedValueOnce({ count: 1 });
     userFindManyMock.mockResolvedValueOnce([
       { id: "u1", email: null, phone: "+21612345678", preferences: { emailNotifications: true, smsNotifications: true } },
     ]);
@@ -151,7 +178,6 @@ describe("POST /api/admin/notifications — EMAIL/SMS dispatch (this session's n
 
   it("one recipient's delivery failure doesn't fail the request or block other recipients", async () => {
     userFindManyMock.mockResolvedValueOnce([{ id: "u1" }, { id: "u2" }]);
-    notificationCreateManyMock.mockResolvedValueOnce({ count: 2 });
     userFindManyMock.mockResolvedValueOnce([
       { id: "u1", email: "fails@test.com", phone: null, preferences: { emailNotifications: true, smsNotifications: false } },
       { id: "u2", email: "ok@test.com", phone: null, preferences: { emailNotifications: true, smsNotifications: false } },

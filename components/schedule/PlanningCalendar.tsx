@@ -220,7 +220,7 @@ function SidePanel({
           {canManage && (onEdit || onDelete) && (
             <div className="flex gap-2 pt-1">
               {onEdit && (
-                <button type="button" onClick={onEdit} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--primary)] py-2.5 text-sm font-semibold text-white hover:bg-[var(--primary-dark)]">
+                <button type="button" onClick={onEdit} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--primary)] py-2.5 text-sm font-semibold text-[var(--brand-contrast)] hover:bg-[var(--primary-dark)]">
                   <Edit size={15} /> Modifier
                 </button>
               )}
@@ -369,7 +369,7 @@ export default function PlanningCalendar({
                     type="button"
                     onClick={() => cal.openDay(cell.iso)}
                     aria-label={`Ouvrir le ${formatDayLong(cell.iso)} (${list.length} session${list.length !== 1 ? "s" : ""})`}
-                    className={`mb-1 flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${isToday ? "bg-[var(--primary)] text-white" : "text-primary hover:bg-muted"}`}
+                    className={`mb-1 flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${isToday ? "bg-[var(--primary)] text-[var(--brand-contrast)]" : "text-primary hover:bg-muted"}`}
                   >
                     {dayNum}
                   </button>

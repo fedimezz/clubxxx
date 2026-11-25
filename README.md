@@ -1,662 +1,1264 @@
-# ClubX — SaaS Multi-Tenant Platform
+# ClubX
 
-> **Stack:** Next.js 16 · TypeScript · Prisma 5 · PostgreSQL · Tailwind CSS v4 · JWT · Upstash Redis · Cloudinary · Stripe (international payments) · Resend (email) · TextBee (SMS)
+ClubX is a French-first, multi-tenant sports-club management platform built with Next.js 16, React 19, TypeScript, Prisma, and PostgreSQL.
 
-A full-stack, multi-tenant SaaS platform for sports club management. Each gym gets its own subdomain (`slug.yoursaas.com`), isolated data, custom branding, and a self-service billing flow.
+The platform has three operating areas:
 
----
+- **Each club** has an isolated workspace, public website, member area, staff tools, schedule, payments, and branding.
+- **Club owners and admins** manage members, coaches, subscriptions, sessions, bookings, posts, reports, website settings, and billing.
+- **Platform super admins** manage the SaaS catalogue, clubs, payments, support requests, logs, and system-wide operations.
 
-## Table of Contents
+The repository is also prepared for one-host deployments through `/c/<club-slug>/...` and for subdomain deployments such as `club-a.example.com`.
 
-> Latest status, verified vs. unverified work: [PROJECT_STATUS.md](PROJECT_STATUS.md) (2026-10-18 section).
-
-1. [Architecture Overview](#architecture-overview)
-2. [Multi-Tenancy Model](#multi-tenancy-model)
-3. [Roles & Permissions](#roles--permissions)
-4. [Feature Map](#feature-map)
-5. [Database Schema Summary](#database-schema-summary)
-6. [API Reference](#api-reference)
-7. [Authentication Flow](#authentication-flow)
-8. [Payment Flow (Stripe)](#payments-stripe-and-tunisia-fallback)
-9. [SaaS Billing (Plan Limits)](#saas-billing-plan-limits)
-10. [Testing](#testing)
-11. [Project Status — Phases 0–12](#project-status--phases-012)
-12. [Setup & Environment Variables](#setup--environment-variables)
-13. [Deployment (Vercel)](#deployment-vercel)
-14. [Platform Admin — Club Management](#platform-admin--club-management)
-15. [Production Checklist](#production-checklist)
-16. [Key Files Reference](#key-files-reference)
+> **Status:** the implementation and automated test suite are extensive. Live payment providers, wildcard DNS/TLS, browser walkthroughs, and a signed mobile release must still be verified in the target environment. See [Project status and known limitations](#project-status-and-known-limitations).
 
 ---
 
-## Architecture Overview
+## Table of contents
 
+1. [Main features](#main-features)
+2. [System architecture](#system-architecture)
+3. [Tenant routing](#tenant-routing)
+4. [Roles and permissions](#roles-and-permissions)
+5. [Page map](#page-map)
+6. [Business rules](#business-rules)
+7. [Authentication and session rules](#authentication-and-session-rules)
+8. [Billing and payments](#billing-and-payments)
+9. [SaaS plans and limits](#saas-plans-and-limits)
+10. [Database model](#database-model)
+11. [API map](#api-map)
+12. [Background jobs](#background-jobs)
+13. [Integrations](#integrations)
+14. [Local setup](#local-setup)
+15. [Environment variables](#environment-variables)
+16. [Commands](#commands)
+17. [Testing](#testing)
+18. [Production deployment](#production-deployment)
+19. [Project structure](#project-structure)
+20. [Security model](#security-model)
+21. [Project status and known limitations](#project-status-and-known-limitations)
+
+---
+
+## Main features
+
+### Club members
+
+- Register or sign in by email/password or Google OAuth when enabled.
+- View personal KPIs, weekly activity, attendance, upcoming sessions, notifications, offers, and membership status.
+- Browse an active weekly schedule.
+- Reserve an open session and cancel a booking.
+- View and search past or upcoming reservations.
+- Subscribe to a club membership plan using card checkout or an available manual flow.
+- View a digital membership card.
+- Read, like, and comment on club news.
+- Submit reports or complaints and track their status.
+- Manage profile data, avatar, password, language, theme, and notification preferences.
+- Receive in-app notifications and optionally device push notifications.
+
+### Coaches
+
+- Open a coach-specific dashboard.
+- View coach statistics: sessions, reservations, attendances, and fill rate.
+- View members assigned to their own sessions.
+- Mark attendance or clear incorrect attendance according to owner-configured coach permissions.
+- Edit a public coach profile, including photo, biography, phone, and specialties.
+
+### Owners and club admins
+
+- Monitor club KPIs, attendance, bookings, active members, revenue, and staff.
+- Create, search, edit, suspend, reactivate, invite, and remove members.
+- Create and manage coach profiles and club staff.
+- Build weekly plans and individual sessions.
+- Switch between calendar and weekly planning views.
+- View and cancel bookings.
+- Create and manage club membership offers.
+- Sell or renew memberships and record onsite payments.
+- Manage subscriptions and trial/paid club status.
+- Publish news, promotions, notifications, and member reports.
+- Configure branding, colors, logos, public pages, social links, timezone, and reservation cutoff.
+- Choose from nine distinct public website templates, with independent theme and built-in 3D model selection.
+- Use the owner-only Image Studio to upload or generate images, choose exact page placements, crop/reposition, replace, and remove them.
+- Customize public-page text through the existing content editor without changing a theme's design identity.
+- Configure role permissions for admins and coaches.
+- Request website/theme/3D design changes after the initial setup is locked.
+- Review activity logs and platform-facing service requests.
+- Upgrade or reactivate the club SaaS subscription by card or manual payment.
+
+### Platform super admin
+
+- View platform-wide MRR, 30-day revenue, club counts, members, trials, and pending queues.
+- Search, create, edit, suspend, reactivate, cancel, and inspect clubs.
+- Change a club plan, extend a trial, reset an owner password, or delete a club.
+- Create and edit SaaS plans, prices, billing periods, visibility, and limits.
+- Approve or reject manual SaaS payment requests and then activate the club only after payment verification.
+- Manage domain, website, service, and design requests.
+- Review platform activity logs and system health.
+- Configure platform-level service prices.
+
+### Public club website
+
+The platform host shows ClubX marketing and onboarding pages. A resolved club host shows that club's themed public site.
+
+Public pages include:
+
+- Home
+- Offers/plans
+- Coaching and coaches
+- Schedule
+- Gallery
+- News/actualités
+- Download
+- Legal terms and privacy
+- Reactivation and suspended-club states
+
+Page availability, branding, theme, 3D hero model, text, and images are supplied from each club's `GymSettings` and `PageContent` records.
+
+The nine selectable website templates are:
+
+- **Modern Fitness** — industrial forge hero, steel navigation rail, bold condensed type, plate-style offers.
+- **Premium Glass** — bento hero, translucent glass rail, soft gradients, tile-based offers.
+- **Energetic Red** — arena/scoreboard hero, high-impact ticker navigation, diagonal accents, scoreboard offers.
+- **Clean Minimal** — editorial hero, fine-line rail, spacious typography, typographic offer table.
+- **Sporty Dark Blue** — sports-dashboard hero, dark technical rail, performance styling, HUD offer cards.
+- **Nature & Wellness** — organic studio hero, floating navigation, calm shapes, soft offer cards.
+- **Neon Purple** — illuminated grid/HUD hero and rail, futuristic typography, console-style offer list.
+- **Classic Elegant** — framed salon hero, serif typography, double-rule navigation, engraved offer rows.
+- **Bold Black & Yellow** — street-texture hero, tape-inspired rail, high-contrast cards and sticker-style offers.
+
+Each has its own layout, navigation styling and behavior, desktop sidebar, section/card treatments, heading typography, pricing presentation, entrance motion, and responsive mobile navigation. Existing saved theme IDs resolve through aliases to the closest current design; aliases are not offered as extra choices. Theme switching does not overwrite the separately selected 3D hero model.
+
+---
+
+## System architecture
+
+```text
+Browser / mobile client
+        |
+        v
+Next.js proxy.ts
+  - tenant resolution
+  - JWT/session guard
+  - CSRF origin check
+  - write rate limiting
+  - club suspension/trial/paid-period checks
+  - CSP and nonce headers
+        |
+        v
+Next.js 16 App Router
+  - React Server/Client Components
+  - Route handlers under app/api
+  - Public, member, admin, and platform pages
+        |
+        v
+Authorization and tenant guards
+  - requireUser / requireAdmin / requireOwner
+  - requireCoach / requireSuperAdmin
+  - plan limit and feature checks
+        |
+        v
+Prisma 5 -> PostgreSQL
+
+External services:
+  Stripe -> SaaS and membership payments
+  Cloudinary -> owner/member image uploads
+  OpenAI Images API -> owner-requested website image generation
+  Resend or SMTP -> email
+  TextBee -> optional SMS
+  Upstash Redis -> distributed limits and SSE-related infrastructure
 ```
-Browser
-  │
-  ▼
-proxy.ts (Next.js Edge Middleware)
-  │  • Resolves subdomain → x-club-slug header
-  │  • Verifies JWT (Jose, Edge-compatible)
-  │  • Role-based route guards (OWNER / ADMIN / COACH / MEMBER / SUPER_ADMIN)
-  │  • Global rate limiting (Upstash Redis, 60 req/min per user)
-  │  • CSRF origin check on all state-mutating requests
-  │
-  ▼
-Next.js App Router (108 pages)
-  │
-  ├── /app/(public)        Marketing site, landing, offres
-  ├── /app/onboarding      3-step club creation wizard
-  ├── /app/dashboard       Member + Coach dashboards
-  ├── /app/admin           Owner + Admin management panels
-  └── /app/platform        Super-admin control plane
-  │
-  ▼
-API Routes (/app/api/**)
-  │  • Every route calls requireAdmin/requireOwner/requireUser/requireCoach
-  │  • Every Prisma query includes clubId (never trusts client-supplied value)
-  │  • plan-limits.ts enforces SaaS tier limits before any write
-  │
-  ▼
-Prisma 5 → PostgreSQL
-Cloudinary (images) · Upstash Redis (rate limit) · Stripe (international payments)
-Resend (email) · TextBee (SMS)
-```
+
+Key application layers:
+
+- `app/` — pages and API route handlers.
+- `components/` — reusable public, member, admin, platform, schedule, and UI components.
+- `context/` — authentication, theme, language, club settings, and member-shell state.
+- `lib/` — tenant resolution, guards, billing, permissions, plan limits, validation, notifications, and integrations.
+- `prisma/schema.prisma` — database schema.
+- `prisma/migrations/` — ordered PostgreSQL migrations.
+- `proxy.ts` — request-level routing and protection.
 
 ---
 
-## Multi-Tenancy Model
+## Tenant routing
 
-| Concept | Implementation |
+### Subdomain mode
+
+On a real domain, a club slug is resolved from the first subdomain:
+
+```text
+club-a.example.com  -> Club where slug = "club-a"
+club-b.example.com  -> Club where slug = "club-b"
+example.com         -> ClubX platform/landing
+```
+
+In production, tenant identity comes from:
+
+1. the request host;
+2. a validated custom domain, if configured;
+3. `x-club-slug` injected by `proxy.ts` in supported local/single-host cases.
+
+Client-provided `clubId` values are never trusted as tenant identity.
+
+### Single-host mode
+
+On hosts such as `*.vercel.app`, or when explicitly enabled, a club is addressed through a path prefix:
+
+```text
+https://app.example/c/club-a
+https://app.example/c/club-a/offres
+https://app.example/c/club-a/api/dashboard
+```
+
+The proxy:
+
+1. extracts the `/c/<slug>` prefix;
+2. validates the slug;
+3. resolves the club;
+4. rewrites the path to the normal application route;
+5. forwards `x-club-slug`;
+6. remembers the club in an httpOnly cookie for normal navigation.
+
+Platform-only paths such as `/platform`, `/onboarding`, and their APIs cannot inherit a club cookie.
+
+### Local development
+
+Modern browsers resolve `*.localhost` to local host. The seeded setup exposes:
+
+```text
+http://club-a.localhost:3000
+http://club-b.localhost:3000
+http://localhost:3000
+```
+
+A plain localhost host is the platform host. Development-only `x-club-slug` and `?club=<slug>` values are available for LAN/mobile testing but are ignored as tenant overrides in production.
+
+### Reserved slugs
+
+Slugs are DNS-safe and cannot use names reserved for platform infrastructure, for example `www`, `api`, `admin`, `app`, `platform`, `mail`, `cdn`, `static`, `onboarding`, `auth`, `login`, `register`, `billing`, or `clubx`.
+
+---
+
+## Roles and permissions
+
+| Role | Club scope | Primary access |
+|---|---|---|
+| `SUPER_ADMIN` | None | Entire SaaS platform |
+| `OWNER` | One club | Full club and SaaS-owner access |
+| `ADMIN` | One club | Operational club access |
+| `COACH` | One club | Own sessions, roster, stats, and profile |
+| `MEMBER` | One club | Personal dashboard, schedule, booking, and membership |
+
+### OWNER
+
+The owner bypasses all configurable permission checks and has every club permission. Owner-only capabilities include SaaS billing and plan management. In a locked club, owner access is limited to profile/reactivation workflows.
+
+### ADMIN
+
+Admins receive permissions through the role-permission catalogue. A missing row keeps the historical/default behaviour. An explicit `allowed=false` row denies that capability.
+
+Default-admin permissions include member and staff management, planning, bookings, memberships, payments, announcements, notifications, reports, and settings visibility. Sensitive capabilities such as certain website content or promotion changes may require explicit owner delegation.
+
+Unknown permission keys fail closed.
+
+### COACH
+
+Coach capabilities are configurable separately:
+
+- view own session roster;
+- mark or remove attendance;
+- view coach statistics;
+- edit the coach public profile.
+
+Admin and owner accounts bypass coach restrictions. A coach cannot access another coach's session or member scope.
+
+### SUPER_ADMIN
+
+Super admins have no gym `clubId`. They can operate across clubs but cannot accidentally enter gym-level role permissions.
+
+---
+
+## Page map
+
+### Platform and landing
+
+| Path | Description |
 |---|---|
-| Tenant unit | `Club` row with a unique `slug` |
-| Subdomain routing | `slug.yoursaas.com` → proxy injects `x-club-slug` header |
-| Tenant resolution | `lib/tenant.ts → resolveTenantFromRequest()` reads the header, looks up `clubId` |
-| Data isolation | Every DB model has a `clubId` FK. Every query `WHERE clubId = ?` |
-| Cross-tenant guard | `requireAdmin()` re-reads `clubId` from the DB — JWT value is ignored for the WHERE clause |
-| Local dev | `club-a.localhost:3000` → gym A, `club-b.localhost:3000` → gym B, plain `localhost:3000` → platform (no env var needed) |
+| `/` | Platform landing on the apex host; themed club home on a resolved club host |
+| `/gallery` | Public gallery page |
+| `/coaching` | Public coaching page and coach cards |
+| `/offres` | Public membership offers |
+| `/actualites` | Public news feed |
+| `/download` | Mobile app/APK download page; APK controls appear only for a valid signed release |
+| `/legal/terms` | Terms of use |
+| `/legal/privacy` | Privacy notice |
+| `/club-suspended` | Suspended-club state |
+| `/reactivate` | Public club/reactivation flow |
 
-**Security contract:** A token from Club A used on Club B's subdomain is rejected at the `requireX()` layer — the user's `clubId` from the DB is compared against the resolved club from the subdomain.
+### Authentication and onboarding
 
----
+| Path | Description |
+|---|---|
+| `/login` | Login entry/bridge |
+| `/register` | Registration entry/bridge |
+| `/user/login` | Email/password member or staff login |
+| `/user/register` | Member registration |
+| `/user/forgot-password` | Request a password-reset code |
+| `/user/reset-password` | Verify/reset a password |
+| `/user/verify` | Account email verification |
+| `/user/accept-invitation` | Accept an owner/admin invitation and set a password |
+| `/user/onboarding` | User-side onboarding entry |
+| `/onboarding` | Club-owner signup wizard |
+| `/auth/sync` | Session synchronization/bridge page |
 
-## Roles & Permissions
+### Member dashboard
 
-| Role | Scope | Access |
-|---|---|---|
-| `SUPER_ADMIN` | Platform | All clubs, no `clubId`. `/platform` route tree |
-| `OWNER` | Club | Full access + SaaS plan management + analytics + billing |
-| `ADMIN` | Club | Operational access (members, sessions, coaches, payments). No analytics/billing |
-| `COACH` | Club | Own sessions + roster only |
-| `MEMBER` | Club | Personal dashboard (bookings, membership, schedule, profile) |
+| Path | Description |
+|---|---|
+| `/dashboard` | Personal KPIs, weekly progress, activity, attendance, offers, and next session |
+| `/dashboard/schedule` | Club schedule and booking controls |
+| `/dashboard/bookings` | Search and manage personal reservations |
+| `/dashboard/membership` | Membership status and purchase/renewal |
+| `/dashboard/coach` | Coach dashboard redirect/space |
+| `/dashboard/actualites` | News feed, likes, comments, and media |
+| `/dashboard/notifications` | Notification center with read/clear actions |
+| `/dashboard/profile` | Profile, avatar, password, and account data |
+| `/dashboard/settings` | Language, theme, and notification preferences |
+| `/dashboard/reports` | Member reports/complaints |
 
-Granular RBAC is in `lib/permissions.ts`. Custom overrides stored in `role_permissions` table (per-club, per-role, per-action).
+### Coach tools
 
----
+The coach role operates from `/dashboard/coach` and its APIs:
 
-## Feature Map
+- `/dashboard/coach` — coach overview;
+- own session roster;
+- attendance marking;
+- coach statistics;
+- public coach profile editing.
 
-### Member Dashboard `/dashboard`
-- Personal KPI cards (active subscription, bookings this week, sessions attended)
-- Booking flow — browse schedule, book/cancel sessions
-- Membership page — subscribe to a plan, resume pending payment
-- Profile management (name, phone, avatar, password, preferences)
-- Notification center + real-time SSE bell
+### Club admin
 
-### Coach Dashboard `/dashboard/coach`
-- Stats widget (totalSessions, bookings, attendances, fillRate)
-- Session roster with expandable member list + manual attendance marking
+| Path | Description |
+|---|---|
+| `/admin` | Owner/admin KPI overview and setup checklist |
+| `/admin/get-started` | Initial website setup mode selection |
+| `/admin/website-setup` | Guided setup wizard |
+| `/admin/members` | Member management |
+| `/admin/staff` | Club staff overview |
+| `/admin/staff/coaches` | Coach management |
+| `/admin/schedule` | Weekly planning and calendar |
+| `/admin/bookings` | Club-wide bookings |
+| `/admin/plans` | Gym membership-plan catalogue |
+| `/admin/subscriptions` | Member subscription lifecycle |
+| `/admin/payments` | Payment ledger and onsite-payment recording |
+| `/admin/billing` | Club SaaS subscription, renewal, and upgrade |
+| `/admin/reactivate` | Reactivate a suspended, expired, or cancelled club |
+| `/admin/promotions` | Discount/promotion management |
+| `/admin/news` | Club news posts |
+| `/admin/notifications` | Manual notification/broadcast tools |
+| `/admin/reports` | Member report workflow |
+| `/admin/roles` | Admin and coach permission toggles |
+| `/admin/appearance` | Theme and appearance settings |
+| `/admin/image-studio` | Owner-only upload/generation, image placement, and crop controls |
+| `/admin/services` | Professional/domain/service requests |
+| `/admin/theme-requests` | Theme/design change requests |
+| `/admin/website-setup` | Website configuration and setup |
+| `/admin/settings` | Club identity, branding, social links, and public settings |
+| `/admin/profile` | Owner/admin profile |
+| `/admin/logs` | Club audit log |
+| `/admin/payments` | Club/member payment tools |
 
-### Admin Panel `/admin`
-- **Members** — CRUD, search/filter/paginate, manual plan assignment
-- **Staff** — Coaches and admins management
-- **Schedule** — Weekly plan builder, session management, activation/archive
-- **Bookings** — View/cancel all bookings, sort by session/member/date
-- **Subscriptions** — Approve/cancel/suspend member subscriptions
-- **Payments** — Manual onsite payment recording and signed Stripe Checkout settlement
-- **Plans** — Gym membership plan CRUD (pricing, duration, quotas)
-- **Promotions** — Discount codes with validity windows
-- **Reports** — Member-submitted reports, status workflow
-- **Notifications** — Broadcast + individual notification management
-- **Roles** — RBAC toggle matrix per role
-- **Content** — Website page content editor
-- **Logs** — Full activity audit log with filters
-- **Settings** — Branding, colors, logo, hero image, social links, working hours
-- **Billing** — SaaS subscription status, trial countdown, upgrade CTA
+### Platform super admin
 
-### Platform (Super Admin) `/platform`
-- **Clubs — full CRUD** (`/platform/clubs`, see [Platform Admin](#platform-admin--club-management)): create, search/filter/sort, edit, suspend / activate / ban, change plan, extend trial, reset owner password, delete
-- Platform-wide activity logs
-- SaaS plan management
-- System health overview
-
-### Website Builder
-- Each club has a public website at `slug.yoursaas.com` with pages: Home, Schedule, Coaches, Pricing, Contact
-- Pages toggled per club via `GymSettings.enabledPages`
-- `ClubSettingsContext` applies `--primary` CSS variable in real-time
-- Content editable from `/admin/content`
-
-### Onboarding `/onboarding`
-- 4-step wizard: verified founder account → club info → site theme → paid plan
-- Founder email is verified with a rate-limited six-digit code; club creation
-  consumes a short-lived, one-time proof issued by the verification endpoint
-- Club and owner are created in a suspended state while Stripe Checkout is pending
-- No club access or owner bridge is issued until the Stripe webhook or verified
-  Checkout return confirms the exact amount, currency, and payment ledger entry
-- A failed or expired signup checkout removes the unpaid pending club so signup can be retried
-- Tunisia-based paid signups are directed to support; they are never activated without payment
-- The selected theme preset and both brand colors are saved during signup and applied to the public site
-- Rate-limited (5 clubs per IP per hour); slug availability check is rate-limited too (40/min per IP)
-- Reserved subdomains (`www`, `api`, `admin`, `mail`, …) are refused — see `lib/slug.ts`
-
-Membership offers have one owner-selected currency per price (`TND`, `USD`,
-`EUR`, `GBP`, `CAD`, or `CHF`). Tunisia members pay onsite; Stripe checkout
-supports the configured online currencies and always uses the price/currency
-stored with the offer.
-
----
-
-## Database Schema Summary
-
-| Model | Table | Key relations |
-|---|---|---|
-| `Club` | `clubs` | Has many Users, GymSettings (1:1), ClubSubscription (1:1) |
-| `User` | `users` | Belongs to Club. Roles: OWNER/ADMIN/COACH/MEMBER |
-| `GymSettings` | `gym_settings` | 1:1 with Club. Branding, pages, social links |
-| `SaasPlan` | `saas_plans` | STARTER / PRO / BUSINESS. JSON `limits` field |
-| `ClubSubscription` | `club_subscriptions` | 1:1 with Club. Status: TRIALING/ACTIVE/SUSPENDED/CANCELLED |
-| `MembershipPlan` | `membership_plans` | Per-club gym membership (monthly/yearly/etc.) |
-| `Subscription` | `subscriptions` | Member → MembershipPlan. Status: PENDING/ACTIVE/EXPIRED |
-| `Payment` | `payments` | Member payment per subscription, including provider and country. Status: PENDING/PAID/FAILED |
-| `Coach` | `coaches` | Staff profile with specialties, bio, photo |
-| `WeeklyPlan` | `weekly_plans` | Per-club weekly schedule template |
-| `Session` | `sessions` | Specific session in a WeeklyPlan (day, time, capacity) |
-| `UserSession` | `user_sessions` | Booking: User ↔ Session |
-| `Attendance` | `attendances` | Coach marks member present |
-| `Notification` | `notifications` | In-app + SSE real-time |
-| `ActivityLog` | `activity_logs` | Audit trail for all admin/owner actions |
-| `MemberReport` | `member_reports` | Member → Admin reports |
-| `Promotion` | `promotions` | Discount codes with usage limits |
-| `Post` | `posts` | Club announcements/feed with likes + comments |
-| `RolePermission` | `role_permissions` | Per-club RBAC overrides |
-| `PageContent` | `page_content` | Editable website content blocks per page |
-
-**Indexes added (Phase 10):**
-- `UserSession`: `[clubId, isCancelled]`, `[clubId, bookedAt]`, `[userId, clubId]`
-- `Coach`: `[clubId, isActive]`
-- `SaasPayment`: `[status]`, `[clubId, paidAt]`
-- `MemberReport`: `[clubId, status]`
+| Path | Description |
+|---|---|
+| `/platform/login` | Super-admin login |
+| `/platform` | Platform overview and queues |
+| `/platform/clubs` | Club search and management |
+| `/platform/clubs/[id]` | Club detail and lifecycle controls |
+| `/platform/plans` | SaaS plan catalogue and limits |
+| `/platform/manual-payments` | Manual SaaS payment verification |
+| `/platform/domain-requests` | Custom-domain requests |
+| `/platform/website-requests` | Website change requests |
+| `/platform/design-requests` | Theme/3D change requests |
+| `/platform/service-requests` | Professional setup/service requests |
+| `/platform/logs` | Platform activity log |
+| `/platform/system` | System configuration and health |
 
 ---
 
-## API Reference
+## Business rules
 
-All routes are under `/api/`. Every route is clubId-scoped via `requireX()` guard.
+### Club onboarding
 
-### Auth
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| POST | `/api/auth/login` | Public | Email + password login |
-| POST | `/api/auth/register` | Public | Member self-registration |
-| POST | `/api/auth/logout` | Any | Clear the session cookie (host-only + legacy `Domain=` variants) |
-| GET | `/api/auth/me` | Any | Current user info |
-| GET | `/api/auth/google` | Public | OAuth redirect — **501 unless `GOOGLE_AUTH_ENABLED=1`** |
-| GET | `/api/auth/callback/google` | Public | OAuth callback — same flag |
-| POST | `/api/auth/request-otp` | Public | Phone OTP request |
-| POST | `/api/auth/verify-otp` | Public | OTP verification |
+1. The founder enters and verifies an email with a six-digit code.
+2. The founder chooses whether to start the trial or pay.
+3. The club slug and club identity are validated.
+4. A theme preset and brand colors are stored.
+5. A trial club can receive a 14-day trial by default.
+6. A paid signup is closed until a signed Stripe webhook or super-admin manual verification activates it.
+7. A failed or expired card checkout can remove an unpaid pending club so signup can be retried.
+8. Tunisia/TND manual-payment users can create a request instead of card checkout.
+
+Every club also receives a hidden/free 14-day trial SaaS tier. The trial plan is never sold as a public plan.
+
+### Trial and paid club access
+
+- Trials default to 14 days and can be configured between 1 and 90 days.
+- An expired trial is refused by the tenant/access check even if the cron has not run.
+- Paid clubs receive a period end and optional grace window.
+- The default paid-period grace is 3 days, configurable from 0 to 30.
+- A club past its grace period is not usable.
+- Platform-managed subscriptions with no period end do not expire by date.
+- Suspended or cancelled clubs cannot use the normal club app or public club site.
+- Owner profile and reactivation routes remain available.
+- Reactivation requires Stripe confirmation or super-admin manual verification.
+- Expired clubs keep their database records; this implementation does not delete club data.
+
+### Session scheduling
+
+- Schedule data belongs to an active `WeeklyPlan`.
+- A session has day, start time, end time, activity, coach, capacity, location, and description.
+- Calendar navigation is based on ISO date arithmetic rather than local-midnight date mutation.
+- The club timezone controls interpretation of wall-clock session times.
+- The reservation cutoff defaults to 20 minutes and can be configured per club from 0 to 1440 minutes.
+- Reservation is open only when `sessionStart - now > cutoffMinutes`.
+- At exactly the cutoff, or once the session has started, booking is closed.
+- The server-side booking transaction enforces the cutoff; client state is only informational.
+- Cancelling an existing booking is not controlled by the reservation cutoff.
+
+### Member booking
+
+- A member cannot reserve the same session twice.
+- A session may not exceed its capacity.
+- Only non-cancelled reservations count toward capacity and monthly booking limits.
+- Reservation and attendance rules are evaluated for the member's own club.
+- Cancellation does not erase the booking row; it sets cancellation state and timestamp.
+
+### Membership subscription
+
+- `MembershipPlan` and member `Subscription` are separate from club SaaS subscriptions.
+- A member subscription has start/end dates and `PENDING`, `ACTIVE`, `EXPIRED`, `CANCELLED`, or `SUSPENDED` status.
+- Club membership prices can use TND or another configured membership currency.
+- A card or Stripe payment activates the member subscription only through the verified payment workflow.
+
+### Website customization
+
+- After initial setup, site-wide theme/customization may become locked.
+- The owner can complete one setup wizard or manual setup step.
+- Later theme/hero-model changes require a design-change request and an approved, short-lived, single-use grant.
+- Post-lock content and settings changes use a website-change request workflow.
+- Database-side triggers also enforce design locking; application validation is not the only control.
+- Exactly nine distinct themes are offered for new choices; previous saved theme IDs are mapped to current themes so existing club sites continue to render.
+- Theme and image customization are independent of the built-in 3D hero selector. Selecting a theme preserves the chosen built-in model.
+- The Image Studio exposes the existing page-content image fields: home introduction and gallery; news header; gallery cover and Fitness/Padel/Pool galleries; coaching header and three cards; and offers header.
+- Uploads and generated images use the authenticated club's existing upload/storage path. The server derives the tenant from the signed-in account; callers cannot select a `clubId`.
+- Crop position and zoom are bounded and persisted with the corresponding image in that club's `PageContent` record. Replacing/removing a gallery image also updates its position metadata.
+- Text remains editable through the existing `/admin/website-setup` content editor. Theme-specific layouts, typography, sections, and navigation remain in place when owners change text or images.
+- Image generation is an optional server-side OpenAI integration, limited to six requests per hour per owner and club. Generated previews are not placed on the site until saved to a selected image slot.
+- Uploading an owner-owned custom 3D model requires the club plan's `customHeroModel` feature.
+
+### Data isolation
+
+- The `Club` row is the tenant boundary.
+- Tenant-owned models contain `clubId` or belong through a club-owned parent.
+- Every club query must include the resolved club id.
+- The owner/admin auth guard rechecks the real database account, role, club, and active state rather than trusting stale JWT claims.
+- No route should accept a client-supplied `clubId` as proof of tenant ownership.
+
+---
+
+## Authentication and session rules
+
+- Passwords are hashed with bcryptjs.
+- Sessions use signed HS256 JWTs in httpOnly, same-site cookies.
+- Session lifetime is seven days by default.
+- A password change or reset sets `passwordChangedAt`; older JWTs are rejected.
+- Suspension or role change takes effect in the account recheck and is immediately invalidated through the account cache helper.
+- Super admins are excluded from club tenant resolution.
+- In single-host mode, club identity is carried in a separate club cookie, not by impersonating a subdomain.
+- Logout clears host-only and legacy cookie variants.
+- Bridge tokens for onboarding or OAuth are short-lived, purpose-bound, nonce-bound, and single-use.
+- Non-browser cron callers use bearer or dedicated cron authentication rules.
+- Protected APIs return `401` for missing/invalid sessions.
+- Suspended clubs return `402` with `code: "CLUB_LOCKED"` and a reason from protected APIs.
+
+Google OAuth is disabled unless `GOOGLE_AUTH_ENABLED=1` and valid Google credentials/redirect settings are configured. It is not a password takeover mechanism for an existing unverified account.
+
+---
+
+## Billing and payments
+
+### Club SaaS subscription
+
+The club's subscription to ClubX is stored in `ClubSubscription` and is separate from member subscriptions.
+
+Billing periods:
+
+- `MONTHLY`
+- `YEARLY`
+
+The SaaS plan has independent monthly and yearly prices and a currency. The price is read from the database at checkout time, not from the browser.
+
+For card payments:
+
+1. the owner requests checkout or reactivation;
+2. the server creates a Stripe Checkout session;
+3. the club and payment ledger are pending;
+4. only a signed `checkout.session.completed` or the relevant successful webhook event activates the club;
+5. period end comes from the server ledger's plan and period, not an arbitrary client value.
+
+Supported webhook events include:
+
+- `checkout.session.completed`
+- `checkout.session.async_payment_succeeded`
+- `checkout.session.async_payment_failed`
+- `checkout.session.expired`
+
+Optional recurring Stripe subscriptions are off by default. When enabled, the configured webhook also handles invoice paid/failed and subscription deletion events.
+
+### Manual SaaS payments
+
+Manual payment is available for methods such as bank transfer, D17, Flouci, or cash.
+
+Lifecycle:
+
+```text
+PENDING -> APPROVED -> verified and activated
+                       or
+PENDING -> REJECTED/CANCELLED
+```
+
+Approval alone does not activate the club. A super admin must verify the payment and enter a reference. Activation is compare-and-set to avoid duplicate ledger entries and club reactivation.
+
+Abandoned manual-onboarding clubs can remain pending until platform staff process them.
+
+### Club membership payments
+
+Member payments are recorded in `Payment` with method, provider, country, status, transaction reference, and paid time. Available flows include Stripe and manual onsite/payment methods.
+
+### Renewals
+
+Renewal reminders are sent through `/api/cron/renewal-reminders`:
+
+- 7 days before period end;
+- 3 days before period end;
+- 1 day before period end.
+
+Each threshold is stored against the exact period end so the same reminder is not repeatedly sent. Recurring-card clubs do not receive these SaaS renewal reminder e-mails.
+
+Renewing the same SaaS plan while a period is running can continue from the existing period end. A plan change or lapsed subscription starts a new period.
+
+---
+
+## SaaS plans and limits
+
+The seed defines:
+
+| Plan | Purpose | Members | Coaches | Admin seats | Bookings/month | Other features |
+|---|---|---:|---:|---:|---:|---|
+| Trial | New club, 14-day default | 30 | 2 | 2 | 100 | No custom domain/advanced analytics/revenue/API/white-label/custom 3D |
+| Starter | Legacy/withdrawn from public offers | 100 | 3 | 2 | 500 | Basic features |
+| Pro | Public paid tier | 500 | 15 | 10 | 3000 | Custom domain, advanced analytics, revenue analytics, custom 3D |
+| Business | Public paid tier | Unlimited | Unlimited | Unlimited | Unlimited | All limit flags, custom domain, analytics, API, white-label, custom 3D |
+
+The limits stored in `SaasPlan.limits` are the source of truth. Super admins can edit prices, limits, visibility, and billing periods. Numeric limits can be `null` for unlimited/fair-use behavior.
+
+Before creating a resource, the application calls `checkLimit()` or `checkFeature()`. Numeric usage is counted from the database. Boolean features return an upgrade-required state. Missing or cancelled/suspended SaaS subscriptions fail closed.
+
+Plan limits currently include:
+
+- active members;
+- coaches;
+- owner/admin seats;
+- bookings created during the current month;
+- custom pages;
+- custom domains;
+- advanced analytics;
+- revenue analytics;
+- API access;
+- white-label mode;
+- custom 3D hero model.
+
+---
+
+## Database model
+
+PostgreSQL is the primary database. Prisma models use per-club indexes and uniqueness where appropriate.
+
+### Core tenant and SaaS models
+
+- `Club`
+- `SaasPlan`
+- `ClubSubscription`
+- `SaasPayment`
+- `GymSettings`
+- `ManualPaymentRequest`
+
+### Identity and authorization
+
+- `User`
+- `RolePermission`
+- `UserPreferences`
+- `DeviceToken`
+- `OnboardingEmailVerification`
+
+### Members and clubs
+
+- `MembershipPlan`
+- `Subscription`
+- `Payment`
+- `MembershipCard`
+- `MemberReport`
+
+### Scheduling
+
+- `Coach`
+- `WeeklyPlan`
+- `Session`
+- `UserSession`
+- `Attendance`
+
+### Communication and content
+
+- `Post`
+- `Like`
+- `Comment`
+- `Notification`
+- `PageContent`
+
+### Website and support
+
+- `ClubHeroModel`
+- `WebsiteChangeRequest`
+- `DesignChangeRequest`
+- `DomainRequest`
+- `ServiceRequest`
+- `ServicePrice`
+
+### Audit
+
+- `ActivityLog`
+- `Promotion`
+
+`Like` and `Comment` are intentionally reached through club-scoped posts rather than given redundant club columns. Platform-level `ActivityLog` rows have a null `clubId`.
+
+The migration history includes tenant isolation, billing periods, recurring Stripe support, trial rules, email verification, renewal reminders, plan visibility, payment country/currency fields, service requests, timezone, reservation cutoff, indexes, and design-lock protections.
+
+---
+
+## API map
+
+Every API route is under `/api`. Protected routes perform authorization server-side and re-read the tenant/account state. Public routes still apply origin, anti-abuse, and plan checks where relevant.
+
+### Authentication
+
+- `POST /api/auth/login`
+- `POST /api/auth/register`
+- `POST /api/auth/logout`
+- `GET /api/auth/session`
+- `GET /api/auth/verify`
+- `POST /api/auth/verify`
+- `POST /api/auth/reset-password`
+- `POST /api/auth/resend-code`
+- `GET/POST /api/auth/bridge`
+- `GET /api/auth/accept-invitation`
+- Google OAuth start/callback routes
 
 ### Onboarding
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| GET | `/api/onboarding/check-slug?slug=` | Public | Slug availability (rate-limited, reserved slugs refused) |
-| POST/PATCH | `/api/onboarding/email-code` | Public | Send and verify the founder's email code |
-| POST | `/api/onboarding/create-club` | Public | Atomic club creation |
 
-### Admin — Members
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| GET | `/api/admin/members` | ADMIN+ | List with search/paginate |
-| POST | `/api/admin/members` | ADMIN+ | Create member (checks maxMembers limit) |
-| GET | `/api/admin/members/[id]` | ADMIN+ | Member detail |
-| PATCH | `/api/admin/members/[id]` | ADMIN+ | Update member |
-| DELETE | `/api/admin/members/[id]` | OWNER | Delete member |
-| POST | `/api/admin/members/[id]/subscribe` | ADMIN+ | Assign membership plan |
+- slug availability;
+- email-code send/verify;
+- club creation;
+- onboarding checkout completion;
+- onboarding cancellation.
 
-### Admin — Coaches & Staff
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| GET/POST | `/api/admin/coaches` | ADMIN+ | List / create coach |
-| GET/PATCH/DELETE | `/api/admin/coaches/[id]` | ADMIN+ | Coach CRUD |
-| GET/POST | `/api/admin/staff` | OWNER | List / invite staff |
-| PATCH/DELETE | `/api/admin/staff/[id]` | OWNER | Staff management |
+### Member dashboard
 
-### Admin — Schedule
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| GET/POST | `/api/admin/schedule` | ADMIN+ | Weekly plans |
-| GET/PATCH/DELETE | `/api/admin/schedule/[id]` | ADMIN+ | Session management |
-| POST/PATCH/DELETE | `/api/admin/schedule/plan/[id]` | OWNER | Plan activate/archive/delete |
+- dashboard KPI/activity payload;
+- membership status and subscribe/resume;
+- profile and password;
+- schedule and public schedule;
+- create/cancel bookings;
+- notifications/read/clear;
+- reports;
+- settings;
+- news posts, likes, and comments.
 
-### Admin — Financials
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| GET | `/api/admin/payments` | OWNER | Payment list |
-| POST | `/api/admin/payments` | OWNER | Manual payment record |
-| GET/PATCH | `/api/admin/subscriptions` | ADMIN+ | Subscription management |
-| GET | `/api/admin/analytics` | OWNER | KPI analytics (feature-gated) |
+### Coach dashboard
 
-### Billing (SaaS)
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| GET | `/api/billing/status` | OWNER | Current SaaS plan + trial status |
-| POST | `/api/billing/upgrade` | OWNER | Upgrade/downgrade plan |
+- coach sessions and roster;
+- attendance;
+- coach profile;
+- coach statistics.
 
-### Dashboard (Member/Coach)
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| GET | `/api/dashboard` | MEMBER+ | Personal KPIs |
-| GET/POST/DELETE | `/api/dashboard/bookings` | MEMBER | Booking management |
-| GET | `/api/dashboard/membership` | MEMBER | Subscription status + plans |
-| POST | `/api/dashboard/membership/subscribe` | MEMBER | Initiate subscription payment |
-| GET | `/api/payments/country` | Public | Resolve trusted request country for payment routing |
-| GET | `/api/dashboard/schedule` | MEMBER+ | Public schedule view |
-| GET | `/api/dashboard/coach/stats` | COACH | Coach performance stats |
-| POST | `/api/dashboard/coach/attendance` | COACH | Mark attendance |
+### Club admin
 
-### Payments (Stripe)
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| POST | `/api/payments/stripe/webhook` | Public, signature verified | Settle member or SaaS Checkout sessions |
-| POST | `/api/billing/checkout` | OWNER | Create SaaS plan Checkout session |
+The admin route surface includes:
 
-### Platform (Super Admin)
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| GET | `/api/platform/clubs` | SUPER_ADMIN | List — `?search=&status=&plan=&sort=createdAt\|name\|status&order=&page=&limit=` (+ status counts) |
-| POST | `/api/platform/clubs` | SUPER_ADMIN | Create club + OWNER + trial subscription + settings |
-| GET | `/api/platform/clubs/[id]` | SUPER_ADMIN | Detail: owner, subscription, usage counts, role breakdown, last SaaS payments |
-| PUT | `/api/platform/clubs/[id]` | SUPER_ADMIN | Edit `name`, `slug`, `customDomain`, `owner{name,email,phone}` |
-| PATCH | `/api/platform/clubs/[id]` | SUPER_ADMIN | Actions: `suspend`, `activate`, `ban`, `change_plan`, `extend_trial`, `reset_owner_password` |
-| DELETE | `/api/platform/clubs/[id]` | SUPER_ADMIN | Permanent delete — body `{ "confirmSlug": "<slug>" }` required |
-| GET | `/api/platform/plans` | SUPER_ADMIN | SaaS plan catalog |
-| GET | `/api/platform/logs` | SUPER_ADMIN | Platform-wide audit logs |
-| GET | `/api/platform/system` | SUPER_ADMIN | System health |
+- `/api/admin/dashboard`
+- `/api/admin/members`
+- `/api/admin/staff`
+- `/api/admin/coaches`
+- `/api/admin/schedule`
+- `/api/admin/bookings`
+- `/api/admin/subscriptions`
+- `/api/admin/payments`
+- `/api/admin/plans`
+- `/api/admin/promotions`
+- `/api/admin/reports`
+- `/api/admin/member-reports`
+- `/api/admin/notifications`
+- `/api/admin/roles`
+- `/api/admin/settings`
+- `/api/admin/page-content`
+- `/api/admin/website-setup`
+- `/api/admin/website-change-requests`
+- `/api/admin/domain-request`
+- `/api/admin/service-request`
+- `/api/admin/design-change`
+- `/api/admin/hero-model`
+- `/api/admin/logs`
+- `/api/admin/stats`
+- `/api/admin/system`
+- `/api/admin/billing`
 
-### Infrastructure
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| GET | `/api/health` | Public | DB + Redis liveness check |
-| GET | `/api/sse` | Any | Server-Sent Events for notifications |
-| GET | `/api/cron/trial-check` | CRON_SECRET | Suspend expired trials |
-| GET | `/api/cron/subscription-renewal` | CRON_SECRET | Process renewals |
-| GET | `/api/cron/session-reminders` | CRON_SECRET | Send session reminder notifications |
+### SaaS billing
 
----
+- `/api/billing/status`
+- `/api/billing/trial`
+- `/api/billing/checkout`
+- `/api/billing/manual-request`
+- `/api/billing/portal`
+- `/api/billing/reactivate`
+- `/api/billing/upgrade`
 
-## Authentication Flow
+### Stripe
 
-```
-1. User POSTs /api/auth/login {email, password}
-2. Server: bcrypt.compare → fetch user from DB (with clubId)
-3. generateToken({ id, email, role, name, clubId }) → signed JWT (7 days)
-4. Response: Set-Cookie: token=<JWT>; HttpOnly; SameSite=Lax; Secure — HOST-ONLY (no Domain attribute), so a session on
-   gym-a.yoursaas.com is never sent to gym-b.yoursaas.com and a SUPER_ADMIN session on the apex is never sent to any club.
-   (CSRF covered by the Origin check in proxy.ts)
-5. Subsequent requests: proxy.ts reads cookie → verifyToken() → JWTPayload
-6. requireX(request): re-fetches user from DB to get current role/clubId
-   (JWT value is NOT trusted for DB scoping — DB is the source of truth)
-7. Every Prisma query: WHERE clubId = <DB-verified clubId>
-```
+- `/api/payments/stripe/webhook`
+- `/api/payments/country`
 
-**Cross-host hand-off:** onboarding runs on the apex; `/api/auth/bridge` sets a fresh cookie on the club's own host.
+The Stripe webhook is excluded from normal CSRF and browser auth checks and validates its Stripe signature instead.
 
-**Password policy:** 8+ characters, not in the common-password list, not digits-only, not repetitive (`passwordSchema` in `lib/validation.ts`).
+### Platform
 
-**Password recovery:** club users and mobile members request a six-digit email
-code and submit it with a new password. The platform login links to the
-Super Admin recovery flow. Codes expire after 15 minutes, are rate-limited,
-consumed once, and revoke sessions issued before the password change.
+- `/api/platform/overview`
+- `/api/platform/clubs`
+- `/api/platform/plans`
+- `/api/platform/manual-payments`
+- `/api/platform/domain-requests`
+- `/api/platform/website-requests`
+- `/api/platform/design-requests`
+- `/api/platform/service-requests`
+- `/api/platform/service-prices`
+- `/api/platform/logs`
+- `/api/platform/system`
 
-**Google OAuth (disabled by default):** `/api/auth/google` → Google → `/api/auth/callback/google` → same cookie flow. The callback runs on the apex host, so it cannot yet hand a session to a club subdomain. It is off unless `GOOGLE_AUTH_ENABLED=1` (server) and `NEXT_PUBLIC_GOOGLE_AUTH_ENABLED=1` (shows the button).
+### Public and infrastructure
+
+- public club settings and page content;
+- public plans, offers, coaches, schedule, and promotions;
+- club search;
+- app release/download metadata;
+- hero-model delivery;
+- upload;
+- health check;
+- Server-Sent Events;
+- device tokens;
+- cron endpoints.
 
 ---
 
-## Payments (Stripe and Tunisia fallback)
+## Background jobs
 
-```
-Country is inferred from trusted Vercel/Cloudflare country headers;
-members and owners can manually select a country.
-Tunisia → onsite member payment / contact support for SaaS billing
-Other countries → Stripe Checkout in USD
-       │
-       ▼
-POST /api/dashboard/membership/subscribe (member)
-or POST /api/billing/checkout (club owner)
-  → creates a pending payment and Stripe Checkout session
-  → returns { paymentUrl }
-       │
-       ▼
-Stripe Checkout
-       │
-Stripe POSTs /api/payments/stripe/webhook
-  → verify Stripe-Signature against raw request body
-  → bind session metadata, currency, amount, and reference to pending ledger row
-  → transactionally mark payment paid and activate the subscription
-```
+The cron routes require `CRON_SECRET` or the supported cron bearer mechanism.
+
+| Route | Responsibility |
+|---|---|
+| `/api/cron/trial-check` | Detect expired trials, update club access, notify owners, and write audit entries |
+| `/api/cron/subscription-renewal` | Detect paid-period expiry/grace expiry and suspend access |
+| `/api/cron/renewal-reminders` | Send 7/3/1-day SaaS renewal reminders without duplicates |
+| `/api/cron/session-reminders` | Send scheduled session reminders |
+
+Vercel cron configuration should point to these routes in production and secure them with `CRON_SECRET`.
 
 ---
 
-## SaaS Billing (Plan Limits)
+## Integrations
 
-`lib/plan-limits.ts` exposes three functions:
+### PostgreSQL / Prisma
 
-```ts
-checkLimit(clubId, "maxMembers")    // → { ok: boolean, reason?, upgrade? }
-checkFeature(clubId, "advancedAnalytics")  // → { ok: boolean, upgrade? }
-getFullUsage(clubId)                // → { usage: {}, limits: {} }
-```
+PostgreSQL stores all tenants and business records. Prisma handles migrations and type-safe queries.
 
-**Limits enforced at write time (not read time):**
-- `maxMembers` — checked on `POST /api/admin/members` + member self-register
-- `maxCoaches` — checked on `POST /api/admin/coaches`
-- `maxAdmins` — checked on `POST /api/admin/staff`
-- `maxBookingsPerMonth` — checked on `POST /api/dashboard/bookings`
+### Cloudinary
 
-**Feature gates** (return 402 + `upgrade: true`):
-- `advancedAnalytics` — `/api/admin/analytics`
-- `revenueAnalytics` — analytics revenue endpoint
+Cloudinary stores uploaded logos, avatars, news images, Image Studio uploads/generated images, and public website media. Generic uploads are placed in a tenant folder (`clubs/<clubId>`), with the tenant always taken from the authenticated account.
 
-**Trial lifecycle:**
-- Club created → `ClubSubscription.status = TRIALING`, `trialEndsAt = now + 14 days`
-- Cron `/api/cron/trial-check` runs daily at 06:00 → sets `status = SUSPENDED` on expired trials
-- Proxy: SUSPENDED clubs get `{ error: "Club suspendu" }` on all API calls
+The `storageGB` plan limit is enforced against Cloudinary assets, inline data-URL avatars stored in PostgreSQL, and custom 3D hero models stored in PostgreSQL. Cloudinary assets are recorded in a per-club ledger; database-stored files are counted from their source rows. Uploads reserve capacity under a per-club database lock, then finalize or release the reservation after the provider operation. The configured limit uses decimal GB (1 GB = 1,000,000,000 bytes).
+
+Existing clubs are created with an incomplete Cloudinary inventory after the storage migration. Their uploads fail closed until the paginated backfill completes. See [Production deployment](#production-deployment) for the required one-time command.
+
+### Stripe
+
+Stripe handles card checkout for SaaS plans and member plans, signed webhooks, optional recurring subscriptions, and the owner customer portal.
+
+### Resend and SMTP
+
+Resend is the primary email provider when configured. SMTP is a fallback option for verified domain or personal mail servers.
+
+### TextBee
+
+TextBee provides optional SMS OTPs and notifications. SMS verification must remain disabled unless its API and verification policy are configured.
+
+### Push notifications
+
+Expo push tokens can be registered through the device API. Push delivery is optional and requires `EXPO_ACCESS_TOKEN`.
+
+### Google OAuth
+
+Google sign-in is feature-flagged and disabled by default.
+
+### OpenAI Images
+
+The owner-only `POST /api/admin/image-studio/generate` route calls the OpenAI Images API from the server. `OPENAI_API_KEY` is never sent to the browser. The route validates prompt length, applies a per-owner/per-club rate limit, and returns a temporary image preview; the owner then saves it through the normal tenant-scoped upload route and chooses its page slot in the Image Studio. Without the key configured, image generation returns a clear service-unavailable response; local uploads remain available.
 
 ---
 
-## Trial, public plans, design lock & Android app
+## Local setup
 
-- **Trial and club lock.** New clubs get a `DEFAULT_TRIAL_DAYS` trial (default 14, range 1–90). `getClubAccessState(clubId)` reads the DB on each request; it does not put lock state in the JWT. A locked owner can sign in and use `/admin/reactivate` and the verified SaaS payment flow; other club roles and public club pages see a suspended screen. APIs return `402 { code: "CLUB_LOCKED", reason }`. No club data is deleted, and the dashboard unlocks as soon as Stripe's signed webhook or SUPER_ADMIN's verified manual-payment activation updates the subscription. `SAAS_PLAN_UPGRADES_ENABLED` defaults off in production and on elsewhere; set it to `true` in production to let owners start a plan purchase. SUPER_ADMIN can still manage clubs from `/platform`.
-- **Public plans.** `SaasPlan.isActive` + `isPublic` decide what new customers may pick (`lib/saas-plan-access.ts`). STARTER is `isPublic=false`: gone from offers, still intact for existing subscribers. SUPER_ADMIN manages price, limits and visibility in `/platform/plans`.
-- **Design lock.** After the website setup, a club's theme and 3D hero model are locked (API → HTTP 423 `DESIGN_LOCKED`, and Postgres triggers from migration `20261017000100_design_lock`). To change them: owner `POST /api/admin/design-change` → SUPER_ADMIN approves in `/platform/design-requests` → a single-use 7-day grant, spent by `POST /api/admin/design-change/apply`. One open request per club. The database test is `prisma/tests/design-lock.test.sql` (run on a disposable DB: `psql "$TEST_DATABASE_URL" -v ON_ERROR_STOP=1 -f prisma/tests/design-lock.test.sql`). Retired near-duplicate themes (`luxury`) stay valid for clubs already using them.
-- **Android app download (`/download`).** The APK button is shown only when `ANDROID_APK_URL` (https), `ANDROID_APK_VERSION`, `ANDROID_APK_SHA256`, `ANDROID_APK_RELEASE_NOTES` **and** `ANDROID_APK_SIGNED=true` are all set (`lib/app-release.ts`). Until then visitors see "coming soon". Release steps: [DEPLOYMENT.md §10](DEPLOYMENT.md).
+### Prerequisites
+
+- Node.js 20.9 through Node 24
+- npm
+- Docker with Docker Compose
+- PostgreSQL 16 is used in the included compose setup
+
+Node 22 is the recommended runtime.
+
+### One-command setup
+
+On Windows, run the script with Git Bash or WSL:
+
+```bash
+bash scripts/fresh-start.sh
+```
+
+The script:
+
+1. checks Node, npm, and Docker;
+2. starts PostgreSQL on host port `5433`;
+3. creates `.env` if it does not exist;
+4. installs dependencies;
+5. generates Prisma Client;
+6. applies migrations;
+7. seeds demo plans and tenants;
+8. starts `npm run dev`.
+
+Setup-only mode:
+
+```bash
+bash scripts/fresh-start.sh --no-dev
+```
+
+Reset the local database volume:
+
+```bash
+bash scripts/fresh-start.sh --reset
+```
+
+The reset option is destructive and removes the local Docker database volume.
+
+### Manual setup
+
+```bash
+npm ci
+cp .env.example .env
+docker compose up -d db
+npx prisma generate
+npx prisma migrate deploy
+npx prisma db seed
+npm run dev
+```
+
+Set at least:
+
+- `DATABASE_URL`
+- `DIRECT_URL`
+- `JWT_SECRET`
+- `APP_URL`
+- `NEXT_PUBLIC_APP_URL`
+- `CRON_SECRET`
+
+### Demo accounts
+
+After development seeding, all demo accounts use password `Demo123!`:
+
+| Account | Email |
+|---|---|
+| Club A owner | `owner.a@demo.local` |
+| Club A admin | `admin.a@demo.local` |
+| Club A coach | `coach.a@demo.local` |
+| Club A member | `member.a@demo.local` |
+| Club B owner | `owner.b@demo.local` |
+| Club B admin | `admin.b@demo.local` |
+| Club B member | `member.b@demo.local` |
+| Super admin | `superadmin@platform.local` |
+
+Open demo clubs through `club-a.localhost:3000` and `club-b.localhost:3000`. Open super-admin login through `localhost:3000/platform/login`.
+
+Demo accounts and clubs are not created in production seed mode.
+
+---
+
+## Environment variables
+
+Use `.env.example` as the full template.
+
+### Required database and application
+
+| Variable | Purpose |
+|---|---|
+| `DATABASE_URL` | Pooled PostgreSQL URL |
+| `DIRECT_URL` | Direct PostgreSQL URL used by migrations |
+| `JWT_SECRET` | Session signing secret; at least 32 characters in production |
+| `APP_URL` | Public apex URL without trailing slash |
+| `NEXT_PUBLIC_APP_URL` | Public apex URL exposed to the browser |
+| `CRON_SECRET` | Authentication secret for cron routes |
+
+### Platform bootstrap
+
+| Variable | Purpose |
+|---|---|
+| `SUPER_ADMIN_EMAIL` | Initial/seeded super-admin email |
+| `SUPER_ADMIN_PASSWORD` | Initial super-admin password; at least 12 characters |
+
+### Production integrations
+
+| Variable | Purpose |
+|---|---|
+| `UPSTASH_REDIS_REST_URL` | Distributed rate limiting/Redis URL |
+| `UPSTASH_REDIS_REST_TOKEN` | Redis token |
+| `RESEND_API_KEY` | Resend email API key |
+| `RESEND_FROM` | Verified sender |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | Optional SMTP fallback |
+| `CLOUDINARY_CLOUD_NAME` | Cloudinary name |
+| `CLOUDINARY_API_KEY` | Cloudinary API key |
+| `CLOUDINARY_API_SECRET` | Cloudinary API secret |
+| `OPENAI_API_KEY` | Server-only API key for optional Image Studio generation |
+
+### Stripe
+
+| Variable | Purpose |
+|---|---|
+| `STRIPE_SECRET_KEY` | Stripe server key |
+| `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret |
+| `STRIPE_RECURRING_ENABLED` | Enable recurring subscriptions |
+| `SAAS_PLAN_UPGRADES_ENABLED` | Allow SaaS plan changes in production |
+| `PAID_PERIOD_GRACE_DAYS` | Paid-period grace from 0 to 30; default 3 |
+| `DEFAULT_TRIAL_DAYS` | Trial length from 1 to 90; default 14 |
+
+Register the webhook at:
+
+```text
+https://<APP_URL>/api/payments/stripe/webhook
+```
+
+### Manual payments and contact
+
+| Variable | Purpose |
+|---|---|
+| `MANUAL_PAYMENT_INSTRUCTIONS` | Bank/D17/Flouci/cash instructions shown to owners |
+| `PLATFORM_ALERT_EMAIL` | Alert mailbox for new manual payment requests |
+| `NEXT_PUBLIC_CONTACT_EMAIL` | Public contact mailbox |
+| `LEGAL_ENTITY_NAME` | Publisher identity |
+| `LEGAL_ADDRESS` | Publisher address |
+| `LEGAL_REGISTRATION` | Registration number |
+
+### Optional authentication and push
+
+| Variable | Purpose |
+|---|---|
+| `GOOGLE_AUTH_ENABLED` | Set to `1` to enable Google OAuth |
+| `GOOGLE_CLIENT_ID` | Google OAuth client ID |
+| `GOOGLE_CLIENT_SECRET` | Google OAuth secret |
+| `GOOGLE_REDIRECT_URI` | Google callback URL |
+| `SMS_VERIFICATION_ENABLED` | Enable SMS verification |
+| `TEXTBEE_API_KEY` | TextBee API key |
+| `EXPO_ACCESS_TOKEN` | Expo push credentials |
+
+### APK download
+
+The signed APK button appears only if all required variables are valid:
+
+- `ANDROID_APK_URL`
+- `ANDROID_APK_VERSION`
+- `ANDROID_APK_SHA256`
+- `ANDROID_APK_SIGNED=true`
+- `ANDROID_APK_RELEASE_NOTES`
+
+Optional:
+
+- `ANDROID_APK_RELEASED_AT`
+- `ANDROID_PLAY_URL`
+- `NEXT_PUBLIC_IOS_TESTFLIGHT_URL`
+
+### Routing
+
+| Variable | Purpose |
+|---|---|
+| `NEXT_PUBLIC_SINGLE_HOST_MODE` | Force single-host mode on/off |
+| `DEV_DEFAULT_CLUB_SLUG` | Development-only fallback tenant |
+| `TRUSTED_PROXY_HOPS` | Reverse-proxy trust depth for client IP calculation |
+
+Never commit real secrets or production credentials.
+
+---
+
+## Commands
+
+```bash
+npm run dev          # start Next.js development server
+npm run build        # generate Prisma client, then build Next.js
+npm run start        # start production build
+npm run lint         # ESLint
+npm run typecheck    # TypeScript noEmit check
+npm test             # Vitest run
+npm run validate     # lint + typecheck + tests
+npm run db:migrate   # prisma migrate deploy
+npm run db:migrate:dev
+npm run db:seed
+npm run db:studio
+npm run storage:backfill # reconcile existing Cloudinary assets after migration
+npm run setup        # fresh-start script
+```
 
 ---
 
 ## Testing
 
-```bash
-# Run the whole suite
-npx vitest run
+Tests use Vitest and live primarily beside route implementations in `app/**/__tests__` and shared-library test trees.
 
-# Run only the API suites
-npx vitest run app/api/__tests__/
+The suite covers, among others:
 
-# Run specific suite
-npx vitest run app/api/__tests__/tenant-isolation.test.ts
-```
+- tenant and cross-club isolation;
+- authentication and password/session revocation;
+- login hardening and logout;
+- Google OAuth;
+- onboarding and email verification;
+- Stripe checkout and webhook replay;
+- recurring Stripe events;
+- manual and platform manual payments;
+- SaaS plan limits and plan visibility;
+- member role changes;
+- booking cutoff and capacity;
+- trial and paid-period expiry;
+- renewal reminders;
+- service/domain/website/design requests;
+- public and legal pages;
+- app-release URL/checksum validation;
+- device and push infrastructure;
+- admin dashboards and permission handling;
+- tenant custom domains and routing;
+- SSE and notification behavior;
+- PostgreSQL design-lock triggers.
 
-### Test Suites
-
-| Suite | File | Tests |
-|---|---|---|
-| Auth | `lib/__tests__/auth.test.ts` | JWT sign/verify, role guards |
-| OTP | `lib/__tests__/otp.test.ts` | OTP generation + expiry |
-| Permissions | `lib/__tests__/permissions.test.ts` | RBAC matrix |
-| Rate limit | `lib/__tests__/rate-limit.test.ts` | Upstash sliding window |
-| Validation | `lib/__tests__/validation.test.ts` | Zod schemas |
-| **Tenant isolation** | `app/api/__tests__/tenant-isolation.test.ts` | Cross-club 403 + WHERE scope |
-| **Plan limits** | `app/api/__tests__/plan-limits.test.ts` | 402 on limit hit, 201 below |
-| **Webhook idempotency** | `app/api/__tests__/webhook-idempotency.test.ts` | No double-write on repeat call |
-| **Onboarding E2E** | `app/api/__tests__/onboarding-e2e.test.ts` | Full club creation flow |
-| **Platform club CRUD** | `app/api/__tests__/platform-clubs.test.ts` | Access control, CSRF, validation, conflicts, lifecycle actions, delete guard + order |
-| Platform helpers | `lib/__tests__/platform-clubs-lib.test.ts` | Slug rules, custom domains, trial maths, sort whitelist |
-| Host parsing | `lib/__tests__/host.test.ts` | localhost, `*.localhost`, apex, multi-label apex (`clubx.com.tn`) |
-
-All tests mock Prisma at module level — no live DB required. The club-delete order was additionally verified against a real PostgreSQL 16 with the tracked migrations applied.
-
----
-
-## Project Status — Phases 0–12
-
-| Phase | Name | Status |
-|---|---|---|
-| 0 | Remise en route | ✅ 0 TS errors, 86/86 tests, 108 pages |
-| 1–4 | Multi-tenancy foundation | ✅ All 72 API routes scoped by clubId |
-| 5 | Dashboards | ✅ Owner / Admin / Coach / Member |
-| 6 | Website Builder | ✅ Subdomain proxy + branding + page gates |
-| 7 | Plan Limits | ✅ checkLimit/checkFeature on all write endpoints |
-| 8 | Onboarding | ✅ 3-step wizard + atomic tx + auto-login |
-| 9 | SaaS Billing | ✅ Trial cron + upgrade flow + billing page |
-| 10 | Security + Performance | ✅ CSRF + rate limit (proxy) + indexes + logger |
-| 11 | Tests | ✅ Tenant isolation + plan limits + webhook + onboarding |
-| 12 | Production Readiness | ✅ /api/health + vercel.json + .env.example (Sentry: config stubs only — `@sentry/nextjs` not installed yet) |
-| 13 | Platform club CRUD + production pass | ✅ Full `/platform/clubs` CRUD, host-only cookies + working logout, apex-aware tenant detection, reserved slugs, password policy, Google sign-in gated, 404 / robots / sitemap |
-
-### Known Tech Debt
-
-| # | Issue | Priority |
-|---|---|---|
-| 1 | `/user/onboarding/page.tsx` (Google OAuth phone step) and `/onboarding/page.tsx` coexist — old one should be removed | Medium |
-| 2 | `lib/auth-server.ts` may duplicate `lib/auth.ts` — audit and remove | Low |
-| 3 | `app/login/page.tsx` duplicates `app/user/login/page.tsx` — consolidate | Low |
-| 4 | `coaching/page.tsx` and `activites/*` are static — not yet connected to DB | Low |
-| 7 | Google sign-in for club subdomains needs a bridge-style hand-off before `GOOGLE_AUTH_ENABLED` can be turned on | Medium |
-| 8 | Deleting a club does not remove its Cloudinary assets | Low |
-| 9 | Only the apex has a `sitemap.xml`; club subdomains have none | Low |
-| 5 | Sentry is not wired: `sentry.*.config.ts` are empty stubs and `@sentry/nextjs` isn't a dependency | Medium |
-| 6 | Removed: SSE now uses Upstash Redis pub/sub (`lib/sse.ts`) with in-memory fallback when Redis isn't configured | — |
-
----
-
-## Setup & Environment Variables
-
-### Fastest path (Docker + one command)
+Run the complete validation:
 
 ```bash
-git clone https://github.com/fedimezz/saasssss-club.git && cd saasssss-club
-bash scripts/fresh-start.sh        # Postgres in Docker → .env → install → migrate → seed → dev server
+npm run validate
 ```
 
-Needs Node ≥ 20.9, Docker, and (on Windows) Git Bash or WSL. Flags: `--no-dev` (setup only), `--reset` (wipe the local DB first).
-
-### Manual setup (your own Postgres)
+Run a focused test file:
 
 ```bash
-npm ci                                  # also runs `prisma generate` (postinstall)
-cp .env.example .env                    # Prisma reads `.env`, not `.env.local`; Next reads both
-# edit .env: DATABASE_URL, DIRECT_URL, APP_URL, NEXT_PUBLIC_APP_URL, JWT_SECRET, CRON_SECRET
-npx prisma migrate deploy               # apply tracked migrations
-npx prisma db seed                      # 2 demo gyms, SaaS plans, demo accounts (password: Demo123!)
-npm run dev
+npx vitest run app/api/<area>/__tests__/<test>.test.ts
 ```
 
-Open `http://club-a.localhost:3000` (gym A), `http://club-b.localhost:3000` (gym B) or `http://localhost:3000` (platform: landing, onboarding, `/platform/login`).
-Demo logins: `owner.a@demo.local`, `admin.a@demo.local`, `coach.a@demo.local`, `member.a@demo.local`, `owner.b@demo.local`, `superadmin@platform.local` — all `Demo123!`.
-Redis (Upstash), Resend, TextBee, Cloudinary and Stripe can be omitted locally; email/SMS delivery then reports an unavailable provider without printing message contents or verification codes.
-
-Useful scripts: `npm run validate` (lint + typecheck + tests), `npm run db:studio`, `npm run db:migrate:dev` (create a new migration).
-
-### All Environment Variables
-
-| Variable | Required | Description |
-|---|---|---|
-| `DATABASE_URL` | ✅ | PostgreSQL connection (Prisma runtime) |
-| `DIRECT_URL` | ✅ | Direct connection for migrations (bypasses PgBouncer) |
-| `APP_URL` | ✅ | Platform base URL, no trailing slash. **Also defines the apex for tenant detection** (`club.<apex>` = tenant), so multi-label apexes like `clubx.com.tn` work |
-| `NEXT_PUBLIC_APP_URL` | ✅ | Same, exposed to browser |
-| `JWT_SECRET` | ✅ | Min 32 chars. `openssl rand -base64 32` |
-| `DEFAULT_TRIAL_DAYS` | | Free-trial length for new clubs, 1–90 (default 14) |
-| `NEXT_PUBLIC_CONTACT_EMAIL` | | Public mailbox for the landing footer (links hidden when empty) |
-| `ANDROID_APK_URL` / `_VERSION` / `_SHA256` / `_RELEASE_NOTES` / `_SIGNED` | | All five required to show the APK button — see "Android app download" |
-| `ANDROID_APK_RELEASED_AT`, `ANDROID_PLAY_URL` | | Optional release date / Google Play listing |
-| `UPSTASH_REDIS_REST_URL` | ✅ | Upstash Redis URL |
-| `UPSTASH_REDIS_REST_TOKEN` | ✅ | Upstash Redis token |
-| `CLOUDINARY_CLOUD_NAME` | ✅ | Image upload |
-| `CLOUDINARY_API_KEY` | ✅ | |
-| `CLOUDINARY_API_SECRET` | ✅ | |
-| `GOOGLE_AUTH_ENABLED` | Optional | `1` enables the Google OAuth routes (default off) |
-| `NEXT_PUBLIC_GOOGLE_AUTH_ENABLED` | Optional | `1` shows the “Continuer avec Google” button (default hidden) |
-| `GOOGLE_CLIENT_ID` | Optional | OAuth |
-| `GOOGLE_CLIENT_SECRET` | Optional | |
-| `GOOGLE_REDIRECT_URI` | Optional | |
-| `STRIPE_SECRET_KEY` | Optional | Server-only Stripe API key for international Checkout |
-| `STRIPE_WEBHOOK_SECRET` | Optional | Stripe endpoint signing secret; configure `/api/payments/stripe/webhook` for Checkout complete, async success/failure, and expiration events |
-| `RESEND_API_KEY` | ✅ prod | Resend transactional email API key |
-| `RESEND_FROM` | ✅ prod | Sender address on a verified Resend domain |
-| `TEXTBEE_API_KEY` | Optional | TextBee SMS API key; required in production when SMS verification is enabled |
-| `TEXTBEE_DEVICE_ID` | Optional | Paired Android device ID; omit to use TextBee's default enabled device |
-| `TEXTBEE_BASE_URL` | Optional | TextBee API base URL; defaults to `https://api.textbee.dev/api/v1` |
-| `SMS_VERIFICATION_ENABLED` | Optional | Set `true` to send verification codes by SMS in addition to email |
-| `SMS_ALLOWED_COUNTRY_CODES` | Optional | SMS destination allow-list; defaults to `+216` |
-| `CRON_SECRET` | ✅ | Auth header for Vercel Cron jobs (min 16 chars; unset ⇒ all cron calls rejected) |
-| `SENTRY_DSN` | Optional | Error monitoring (server) |
-| `NEXT_PUBLIC_SENTRY_DSN` | Optional | Error monitoring (browser) |
-| `DEV_DEFAULT_CLUB_SLUG` | Dev only | Leave unset. Makes plain `localhost` act as one gym, which breaks the super-admin login |
-| `COOKIE_DOMAIN` | Optional | Leave empty: the session cookie is host-only (safest for multi-tenant). Setting it shares one session across subdomains and weakens tenant separation |
-| `SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` | Prod seed | Bootstraps the platform SUPER_ADMIN when running the seed with `NODE_ENV=production` (password 12+ chars) |
-| `JSON_LOGS` | Optional | Force JSON log output in dev (`1` = enable) |
-| `DEBUG` | Optional | Enable debug logs in production (`1` = enable) |
+Test databases and mocked integrations should be isolated from production credentials.
 
 ---
 
-## Deployment (Vercel)
+## Production deployment
+
+### Database
+
+Use a pooled PostgreSQL URL for `DATABASE_URL` and a direct URL for `DIRECT_URL`. Apply migrations before opening traffic:
 
 ```bash
-# Deploy
-vercel --prod
-
-# Required Vercel settings:
-# 1. Wildcard domain: *.yoursaas.com → your Vercel project
-# 2. Environment variables: copy all from .env.example
-# 3. Cron jobs: defined in vercel.json (trial-check, subscription-renewal, session-reminders)
+npm run db:migrate
 ```
 
-**Production database bootstrap (run from your machine or CI, pointing at the production DB — not during the Vercel build):**
+After deploying the version that enforces storage quotas to every app instance, run the Cloudinary inventory backfill once before allowing uploads:
 
 ```bash
-export DATABASE_URL="postgresql://…"  DIRECT_URL="postgresql://…"   # DIRECT_URL = non-pooled connection
-npx prisma migrate deploy                                            # apply tracked migrations (never `db push` / `migrate dev` in prod)
-
-# Seeds ONLY the SaaS plan catalog (+ the platform super-admin if both vars are set).
-# In production mode it never creates the demo clubs / demo accounts.
-NODE_ENV=production SUPER_ADMIN_EMAIL="you@yourdomain.com" SUPER_ADMIN_PASSWORD="a-long-unique-password" npx prisma db seed
+npm run storage:backfill
 ```
 
-Required Vercel env vars before the first deploy: `DATABASE_URL`, `DIRECT_URL`, `APP_URL`, `NEXT_PUBLIC_APP_URL`, `JWT_SECRET` (32+ chars), `CRON_SECRET` (16+ chars), `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, `RESEND_API_KEY`, `RESEND_FROM`, `CLOUDINARY_*`. Configure `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` to enable non-Tunisian online payments.
+The command requires the production `DATABASE_URL` and Cloudinary credentials. It scans each `clubs/<clubId>` asset folder across image, video, and raw resources, follows Cloudinary pagination, and rebuilds the per-club ledger. It is safe to rerun: each club is marked incomplete while its inventory is rebuilt, so uploads for that club remain blocked if the scan fails or is interrupted. Retry after resolving the provider/database error. Do not run multiple backfills concurrently; active uploads cause the affected club's scan to stop and require a retry.
 
-**Wildcard domain setup:**
-1. Vercel Dashboard → Project → Settings → Domains
-2. Add `*.yoursaas.com` as a wildcard domain
-3. Add DNS `CNAME *.yoursaas.com → cname.vercel-dns.com` at your registrar
+Pause upload traffic while migrating and rolling out if older app instances may remain active; older versions do not create reservations or ledger entries. Keep uploads paused until every instance runs the new code and the backfill completes. Rerun the command after out-of-band Cloudinary asset deletions or changes to reconcile the ledger.
 
-**Post-deploy checklist:**
-- [ ] `GET https://yoursaas.com/api/health` returns `{ "status": "ok" }`
-- [ ] Create one club via `/onboarding` — check JWT cookie is set
-- [ ] Verify subdomain routes to correct club data
-- [ ] Trigger a Stripe test Checkout and verify the signed webhook settlement
-- [ ] Check Vercel Cron logs after first scheduled run
+Newly provisioned clubs start with an empty, complete inventory. Existing clubs do not; running the backfill is a deployment prerequisite. No live Cloudinary inventory or backfill is run as part of repository tests.
 
----
+Seed only the SaaS plans and super admin in production:
 
-## Platform Admin — Club Management
-
-`/platform/clubs` (SUPER_ADMIN only — sign in at `/platform/login` on the apex domain).
-
-| Action | Where | What it does |
-|---|---|---|
-| **Create** | “Nouveau club” | Atomic: `Club` (TRIAL) + OWNER user + `ClubSubscription` (TRIALING) + `GymSettings` with default pages. Slug auto-filled from the name, plan picker, trial 1–90 days, optional custom domain. The generated owner password is displayed **once**. |
-| **Read** | List + detail | Search (name, slug, domain, owner email), filter by status / plan, sort, paginate; detail shows owner, subscription, usage counts, role breakdown, last SaaS payments. |
-| **Update** | Detail → “Modifier” | Name, slug, custom domain, owner name / email / phone. Renaming keeps the public site name in sync when it was still the club name. Changing the slug changes the club URL (users must sign in again on the new host). |
-| **Suspend / Activate** | List or detail | Blocks / restores login for every user of the club. No data touched. |
-| **Ban** | Detail → danger zone | Status `CANCELLED` + subscription cancelled. Reversible with “Réactiver”. |
-| **Change plan** | Detail → “Changer de plan” | Creates the subscription row if the club has none. |
-| **Extend trial** | Detail | Adds days on top of the remaining trial; also reactivates a club the cron suspended for an expired trial. Refused for paying clubs. |
-| **Reset owner password** | Detail | Sets a new password (policy enforced); tokens for password-reset emails are cleared. Existing sessions stay valid until they expire (JWT). |
-| **Delete** | List or detail | Permanent. The UI requires typing the slug **and** the API rejects the call unless `confirmSlug` matches. |
-
-**Why delete is not a plain `club.delete()`:** `User.clubId` is `onDelete: Restrict` and `Subscription.planId → MembershipPlan` is Restrict too, so a bare delete fails as soon as a club has one user. `deleteClubCascade()` removes member subscriptions → users → club in one transaction; everything else cascades from `Club`. Delete audit entries are written with `clubId = null` so they survive the club’s own log rows.
-
-**Safety rules**
-- Every mutation checks the `Origin` header (CSRF) and `requireSuperAdmin`.
-- Slugs: 3–40 chars, `[a-z0-9-]`, no leading / trailing / double hyphen, and never a reserved name (`www`, `api`, `admin`, `platform`, `mail`, …).
-- Custom domains are normalised (`https://WWW.MonGym.tn/` → `www.mongym.tn`) and can never equal or sit under the platform domain.
-- Unique-index races (slug / email / domain) return `409` with a `field`, not `500`.
-- Every action is written to the activity log (`PLATFORM_CLUB_CREATED | UPDATED | SUSPENDED | ACTIVATED | BANNED | PLAN_CHANGED | TRIAL_EXTENDED | OWNER_PASSWORD_RESET | DELETED`). Passwords are never logged.
-
----
-
-## Production Checklist
-
-**Before the first deploy**
-- [ ] `APP_URL` / `NEXT_PUBLIC_APP_URL` set to the real apex (tenant detection depends on it)
-- [ ] `JWT_SECRET` (32+ chars) and `CRON_SECRET` (16+ chars) set; `COOKIE_DOMAIN` left **empty**
-- [ ] Wildcard domain `*.yourdomain` added in Vercel + DNS `CNAME *` → `cname.vercel-dns.com`
-- [ ] `npx prisma migrate deploy` run against the production DB (never `db push` / `migrate dev`)
-- [ ] `NODE_ENV=production npx prisma db seed` with `SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD` to create plans + platform admin
-- [ ] Upstash Redis, Resend (`RESEND_API_KEY`, `RESEND_FROM`), Cloudinary, Stripe variables set (if online payments are enabled)
-- [ ] `GOOGLE_AUTH_ENABLED` and `NEXT_PUBLIC_GOOGLE_AUTH_ENABLED` left unset (see tech debt #7)
-
-**After deploy**
-- [ ] `GET /api/health` → `{ "status": "ok" }`
-- [ ] Sign in at `https://yourdomain/platform/login`, create a test club from `/platform/clubs`
-- [ ] Open `https://<slug>.yourdomain`, sign in as the owner, **log out and confirm you are really logged out** (reload the page)
-- [ ] Confirm the SUPER_ADMIN session is *not* present on a club subdomain
-- [ ] Run a Stripe test payment; check the first Vercel Cron runs
-- [ ] Delete the test club from `/platform/clubs`
-
-**CI gate (already in `.github/workflows/ci.yml`):** `npm run validate` = ESLint + `tsc --noEmit` + Vitest.
-
----
-
-## Key Files Reference
-
+```bash
+npm run db:seed
 ```
-prisma/
-  schema.prisma          Full schema — 824 lines, 19 models
-  seed.ts                Demo seed: SaaS plans + 2 clubs + members + sessions
-  migrations/            6 migration files (init → SaaS billing)
 
+Production seed mode is activated by `NODE_ENV=production` or `SEED_PLANS_ONLY=1`. Demo clubs and demo passwords are excluded.
+
+### Domain routing
+
+For subdomain mode:
+
+- configure a wildcard DNS record for club subdomains;
+- configure wildcard TLS;
+- set `APP_URL` to the bare platform origin;
+- configure club slugs and, optionally, custom domains.
+
+For Vercel/free-host mode:
+
+- ensure `APP_URL` is the full HTTPS host;
+- leave or enable single-host mode;
+- use `/c/<slug>` club links;
+- retain `/platform` and `/onboarding` as platform-only paths.
+
+### Reverse proxy
+
+Set `TRUSTED_PROXY_HOPS` only if the app is behind a known proxy count. Client IP limiting depends on this setting.
+
+### Stripe
+
+- use test mode until the full webhook flow is verified;
+- register the signed webhook;
+- configure recurring events only if recurring mode is enabled;
+- set `SAAS_PLAN_UPGRADES_ENABLED=true` only after billing policy is ready;
+- verify monthly and yearly purchases, failures, expiry, plan switches, and manual fallbacks.
+
+### Security
+
+- use a long random `JWT_SECRET`;
+- use a separate strong `CRON_SECRET`;
+- serve over HTTPS;
+- keep webhook secrets private;
+- restrict database and provider admin access;
+- configure Cloudinary and Stripe allowed operations;
+- review legal and privacy text with an appropriate professional before real customer use.
+
+---
+
+## Project structure
+
+```text
+app/
+  (public)/                 Public club marketing pages
+  admin/                    Club-owner/admin area
+  dashboard/                Member and coach area
+  platform/                 Super-admin area
+  user/                     Authentication and account pages
+  api/                      Server route handlers
+  legal/                    Terms and privacy
+components/
+  admin/                    Admin UI
+  dashboard/                Member dashboard UI
+  member/                   Member widgets/cards/charts
+  platform/                 Platform UI
+  layout/                   Public layout/navigation
+  schedule/                 Planning/calendar UI
+  themes/                   Club public themes
+context/
+  AuthContext.tsx
+  ClubSettingsContext.tsx
+  LanguageContext.tsx
+  ThemeContext.tsx
 lib/
-  auth.ts                generateToken, verifyToken, requireX() guards, AuthResult type
-  tenant.ts              resolveTenantFromRequest() — subdomain → clubId
-  plan-limits.ts         checkLimit(), checkFeature(), getFullUsage()
-  guards.ts              assertClubId() — type-narrows string|null → string
-  slug.ts                Club slug rules + RESERVED_SLUGS (www, api, admin, …)
-  platform-clubs.ts      Super-admin club CRUD: Zod schemas, provisionClub(), deleteClubCascade(), custom-domain rules
-  platform-client.ts     Browser helpers for /platform (apiRequest, formatters, password generator)
-  host.ts                Host header → tenant slug (apex-aware via APP_URL)
-  logger.ts              Structured JSON logger, zero deps, PII-safe
-  permissions.ts         Granular RBAC permission matrix
-  rate-limit.ts          Upstash Redis sliding window rate limiter
-  notify.ts              In-app + SSE notification helpers
-  session-date.ts        DayOfWeek ↔ Date conversion utilities
-  validation.ts          Shared Zod schemas
-  csrf.ts                Origin verification for state-mutating requests
-  payments/stripe.ts     Stripe Checkout and webhook verification helpers
-
-components/platform/       ConfirmDialog (typed confirmation), CreateClubModal
-app/platform/clubs/      Club list + club detail/edit/danger zone
-app/not-found.tsx        404 page
-app/robots.ts · sitemap.ts   robots.txt / sitemap.xml (apex)
-
-proxy.ts                 Edge middleware — slug injection + JWT + roles + rate limit + CSRF + logging
-
-app/api/
-  health/route.ts        DB + Redis liveness (public, no auth)
-  onboarding/            Club creation (atomic tx)
-  admin/                 All management routes (members, coaches, schedule…)
-  dashboard/             Member + Coach personal routes
-  billing/               SaaS plan status + upgrade
-  platform/              Super-admin control plane
-  cron/                  Trial expiry + subscription renewal + reminders
-  payments/stripe/       Signed Checkout webhook settlement
-  posts/                 Club feed (announcements, likes, comments)
-  sse/                   Server-Sent Events endpoint
-
-sentry.client.config.ts  Browser Sentry (replay + tracing)
-sentry.server.config.ts  Server Sentry (errors + PII scrub)
-sentry.edge.config.ts    Edge Runtime Sentry
-app/global-error.tsx     Global error boundary (App Router)
-vercel.json              Crons + wildcard rewrite + security headers
-.env.example             All variables documented
+  auth.ts
+  tenant.ts
+  guards.ts
+  plan-limits.ts
+  permissions.ts
+  billing-period.ts
+  reservation-cutoff.ts
+  stripe/billing helpers
+prisma/
+  schema.prisma
+  migrations/
+  seed.ts
+  tests/
+scripts/
+  fresh-start.sh
+proxy.ts
+next.config.ts
 ```
+
+---
+
+## Security model
+
+### Request protection
+
+`proxy.ts`:
+
+- validates JWT cookies;
+- injects tenant identity;
+- sends a nonce-backed CSP;
+- applies CSRF checks to mutating API routes;
+- applies a 60-request-per-minute write backstop to authenticated API writes;
+- applies route and club-lock redirects;
+- prevents cross-role entry into admin/platform/member areas.
+
+Some auth entry points and Stripe webhooks bypass normal auth/CSRF handling and implement their own verification.
+
+### Handler protection
+
+Route handlers must:
+
+- call the matching `requireUser`, `requireAdmin`, `requireOwner`, `requireCoach`, or `requireSuperAdmin`;
+- assert that club roles contain a real `clubId`;
+- scope database reads/writes to that club;
+- revalidate plan/feature limits before writes;
+- validate body/query input;
+- log significant mutations;
+- return consistent `401`, `402`, `403`, `404`, and `429` errors.
+
+### CSRF
+
+State-changing API requests are checked by origin. The origin must match the platform apex or a subdomain/custom domain authorized for the deployed origin.
+
+### Rate limits
+
+- authenticated write traffic has a centralized backstop;
+- auth/onboarding/slug and sensitive public endpoints have route-specific limits;
+- Upstash Redis is used in production when configured;
+- Redis/limiter failure may fail open for the central backstop, but route-specific and auth protections remain code-level.
+
+### CSP and headers
+
+The application adds nonce-based CSP, HSTS, `nosniff`, referrer restrictions, permissions restrictions, and clickjacking/frame protections.
+
+---
+
+## Project status and known limitations
+
+This README describes the repository as implemented. The following items still require real-world verification or remain intentionally limited:
+
+- no live Stripe checkout, webhook, renewal, or portal run is guaranteed;
+- Stripe recurring subscriptions are built but off by default;
+- no wildcard DNS/TLS deployment is verified here;
+- no real Cloudinary, Resend, SMTP, TextBee, Upstash, Google OAuth, or SMS account is assumed;
+- no signed APK or AAB is included;
+- browser flows have automated coverage but still need deployment-level walkthroughs;
+- timezone/cutoff settings are stored and enforced, but the settings UI should be verified from the owner workflow;
+- custom-domain support is represented and may require external DNS/provisioning operations;
+- Cloudinary storage quotas require the one-time inventory backfill for existing clubs after the storage migration; no provider-backed backfill has been run here;
+- custom-page count is not yet enforced as a resource quota;
+- abandoned manual onboarding signups remain pending until a platform operator acts;
+- existing clubs with expired periods may become suspended on the next access check after deploying paid-period enforcement;
+- legal pages exist but must be reviewed before real customer use;
+- email behavior depends on provider configuration; development may log/send through configured SMTP/Resend behavior;
+- no owner data-export workflow is implemented for locked/expired clubs;
+- uploaded images receive signature checks; video/audio validation still relies on Cloudinary, and no live provider workflow was exercised here;
+- monitoring/error telemetry is not a production-ready Sentry integration.
+
+For historical implementation and verification notes, also read [PROJECT_STATUS.md](PROJECT_STATUS.md).

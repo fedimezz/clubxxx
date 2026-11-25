@@ -79,4 +79,20 @@ export function uploadBufferToCloudinary(
   });
 }
 
+export async function deleteCloudinaryAsset(
+  publicId: string,
+  resourceType: "image" | "video" | "raw"
+): Promise<void> {
+  if (!isCloudinaryConfigured) {
+    throw new Error("Cloudinary is not configured; uploaded asset cleanup cannot run.");
+  }
+  const result = await cloudinary.uploader.destroy(publicId, {
+    resource_type: resourceType,
+    invalidate: true,
+  });
+  if (result.result !== "ok" && result.result !== "not found") {
+    throw new Error(`Cloudinary asset cleanup failed with result "${result.result}".`);
+  }
+}
+
 export default cloudinary;

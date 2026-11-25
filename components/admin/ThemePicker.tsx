@@ -1,9 +1,9 @@
 "use client";
-// ThemePicker — the 10 website themes (lib/website-themes.ts). Each card is a
+// ThemePicker — the nine website themes (lib/website-themes.ts). Each card is a
 // mini mock-up of THAT theme's real hero layout, typography and motion mood —
 // not just a color swatch — so owners see how different the sites really are.
-// Purely a controlled input: the parent owns the selected id and decides what
-// to stage (theme id, default colors, default 3D model).
+// Purely a controlled input: the parent owns the selected theme and colors;
+// the separately selected 3D model is preserved when a theme changes.
 import { useEffect, useMemo, useState } from "react";
 import { Check, Eye, Monitor, Search, Smartphone, X, Loader2 } from "lucide-react";
 import { SELECTABLE_THEME_PRESETS, THEME_CATEGORIES, resolveThemeId, type ThemePreset } from "@/lib/website-themes";
@@ -165,7 +165,7 @@ function MiniPreview({ theme, clubName, primary, secondary }: { theme: ThemePres
 }
 
 
-type Filter = "all" | (typeof THEME_CATEGORIES)[number]["id"] | "others";
+type Filter = "all" | (typeof THEME_CATEGORIES)[number]["id"];
 
 /** Full-site preview: the REAL public site in an iframe, switched to the previewed theme (see ClubSettingsContext). */
 function PreviewModal({
@@ -241,7 +241,7 @@ export default function ThemePicker({ selectedId, onSelect, disabled, clubName, 
   const list = useMemo(() => {
     const q = query.trim().toLowerCase();
     return presets.filter((t) => {
-      if (filter === "others" ? t.flagship : filter !== "all" && t.category !== filter) return false;
+      if (filter !== "all" && t.category !== filter) return false;
       if (!q) return true;
       return [t.name, t.description, t.mood, ...t.keywords].join(" ").toLowerCase().includes(q);
     }).sort((a, b) => Number(b.flagship) - Number(a.flagship));
@@ -250,7 +250,6 @@ export default function ThemePicker({ selectedId, onSelect, disabled, clubName, 
   const chips: Array<{ id: Filter; label: string }> = [
     { id: "all", label: "Tous" },
     ...THEME_CATEGORIES.map((c) => ({ id: c.id as Filter, label: c.label })),
-    { id: "others", label: "Autres thèmes" },
   ];
 
   return (

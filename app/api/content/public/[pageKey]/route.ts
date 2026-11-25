@@ -5,6 +5,7 @@ import { resolveTenantFromRequest } from "@/lib/tenant";
 import { cachedPublic } from "@/lib/public-cache";
 import { safeImageList, safeImageUrl } from "@/lib/image-url";
 import { MAX_GALLERY_IMAGES } from "@/lib/page-content-schema";
+import { IMAGE_POSITION_MAP_KEY, sanitizeImagePositionMap } from "@/lib/image-position";
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ pageKey: string }> }) {
   const { pageKey } = await params;
@@ -27,6 +28,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     // javascript:) — drop them here so a bad stored value can never crash a page.
     const content: Record<string, string> = { ...((row?.content as Record<string, string>) ?? {}) };
     const def = PAGE_CONTENT_SCHEMA.find((p) => p.pageKey === pageKey);
+    const imageKeys = new Set((def?.fields ?? []).filter((field) => field.type === "image").map((field) => field.key));
+    const galleryKeys = new Set((def?.fields ?? []).filter((field) => field.type === "gallery").map((field) => field.key));
+    content[IMAGE_POSITION_MAP_KEY] = sanitizeImagePositionMap(content[IMAGE_POSITION_MAP_KEY], imageKeys, galleryKeys);
     for (const f of def?.fields ?? []) {
       const v = content[f.key];
       if (typeof v !== "string") continue;

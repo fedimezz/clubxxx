@@ -150,7 +150,7 @@ export default function SubscribeModal({ plan, countryCode, onCountryChange, onC
               <button
                 onClick={handleConfirm}
                 disabled={loading || !canPay}
-                className="flex-1 flex items-center justify-center gap-2 bg-[var(--primary)] text-white py-2.5 rounded-xl font-medium hover:bg-[var(--primary-dark)] transition-colors disabled:opacity-60"
+                className="flex-1 flex items-center justify-center gap-2 bg-[var(--primary)] text-[var(--brand-contrast)] py-2.5 rounded-xl font-medium hover:bg-[var(--primary-dark)] transition-colors disabled:opacity-60"
               >
                 {loading ? (
                   <Loader2 size={16} className="animate-spin" />

@@ -95,7 +95,7 @@ describe("POST /api/admin/design-change (owner files a request)", () => {
     const res = await POST(owner("/api/admin/design-change", "POST", { themeId: "boxing", reason: "Nouvelle identité de marque" }));
     expect(res.status).toBe(201);
     expect(reqCreate.mock.calls[0][0].data).toMatchObject({
-      clubId: "club_a", requestedBy: "u1", requestedThemeId: "boxing", requestedHeroModel: null,
+      clubId: "club_a", requestedBy: "u1", requestedThemeId: "sporty-dark-blue", requestedHeroModel: null,
     });
   });
 

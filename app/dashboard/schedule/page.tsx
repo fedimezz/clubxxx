@@ -3,12 +3,14 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   Loader2, RefreshCw, CalendarX, Clock, MapPin, X, Check,
-  CalendarDays, Users, Zap, BookCheck, AlertCircle, Lock,
+  CalendarDays, Users, Zap, BookCheck, AlertCircle, Lock, Search, Ban,
 } from "lucide-react";
 import CalendarToolbar from "@/components/schedule/CalendarToolbar";
 import { useCalendarState } from "@/components/schedule/useCalendarState";
 import { Skeleton } from "@/components/ui/Skeleton";
 import EmptyState from "@/components/ui/EmptyState";
+import { CoachAvatar } from "@/components/member/DashboardWidgets";
+import { filterSessions, type AvailabilityFilter } from "@/lib/planning-filters";
 import {
   addDays, clockTime, compareIso, formatDayLong, mondaysInRange, monthGrid, parseIso, weekDates,
   type IsoDate,
@@ -75,6 +77,7 @@ interface Session {
   currentBookings: number;
   location: string;
   description: string | null;
+  coachPhotoUrl?: string | null;
   isBookedByUser: boolean;
   isFull: boolean;
   spotsLeft: number;
@@ -260,7 +263,7 @@ function SessionCard({
             className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors
               ${isFull || closedForMe
                 ? "bg-muted text-muted cursor-not-allowed opacity-60"
-                : "bg-[var(--primary)] text-white hover:bg-[var(--primary-dark)] disabled:opacity-40 disabled:cursor-not-allowed"
+                : "bg-[var(--primary)] text-[var(--brand-contrast)] hover:bg-[var(--primary-dark)] disabled:opacity-40 disabled:cursor-not-allowed"
               }`}
           >
             {pending ? <Loader2 size={12} className="animate-spin" /> : closedForMe ? <Lock size={12} /> : isFull ? null : <Check size={12} />}
@@ -270,7 +273,10 @@ function SessionCard({
       </div>
 
       <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted mb-3">
-        <span className="flex items-center gap-1.5 font-medium text-primary col-span-2">{session.coach}</span>
+        <span className="col-span-2 flex items-center gap-2 font-medium text-primary">
+          <CoachAvatar name={session.coach} photoUrl={session.coachPhotoUrl} size={24} />
+          {session.coach}
+        </span>
         <span className="flex items-center gap-1">
           <Clock size={11} />
           {session.startTime}–{session.endTime}
@@ -472,7 +478,7 @@ function SessionModal({
               className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold transition-colors
                 ${isFull || closedForMe
                   ? "bg-muted text-muted cursor-not-allowed opacity-60"
-                  : "bg-[var(--primary)] text-white hover:bg-[var(--primary-dark)] disabled:opacity-40"
+                  : "bg-[var(--primary)] text-[var(--brand-contrast)] hover:bg-[var(--primary-dark)] disabled:opacity-40"
                 }`}
             >
               {pending ? (
@@ -649,7 +655,7 @@ function MonthGrid({
             >
               <span
                 className={`text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full
-                  ${isToday ? "bg-[var(--primary)] text-white" : inMonth ? "text-primary" : "text-muted"}`}
+                  ${isToday ? "bg-[var(--primary)] text-[var(--brand-contrast)]" : inMonth ? "text-primary" : "text-muted"}`}
               >
                 {parseIso(iso)!.d}
               </span>
@@ -704,6 +710,10 @@ export default function SchedulePage() {
 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [activityFilter, setActivityFilter] = useState<string | null>(null);
+  // Client-side refinements (the activity filter stays server-side, as before).
+  const [search, setSearch] = useState(() => (typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("q") ?? "" : ""));
+  const [coachFilter, setCoachFilter] = useState("ALL");
+  const [availability, setAvailability] = useState<AvailabilityFilter>("all");
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
@@ -879,8 +889,19 @@ export default function SchedulePage() {
     for (let d = range.start; compareIso(d, range.end) <= 0; d = addDays(d, 1)) out.push(d);
     return out;
   }, [range.start, range.end]);
-  const visibleSessions = useMemo(() => visibleDates.flatMap((d) => sessionsByDate[d] ?? []), [visibleDates, sessionsByDate]);
   const allSessions = useMemo(() => Object.values(sessionsByDate).flat(), [sessionsByDate]);
+  const coaches = useMemo(() => Array.from(new Set(allSessions.map((s) => s.coach))).sort((a, b) => a.localeCompare(b, "fr")), [allSessions]);
+  const filtersActive = search.trim() !== "" || coachFilter !== "ALL" || availability !== "all";
+  // Everything rendered below reads `filteredByDate`; booking/optimistic logic keeps using the full data.
+  const filteredByDate = useMemo(() => {
+    const out: Record<string, Session[]> = {};
+    for (const [date, list] of Object.entries(sessionsByDate)) {
+      const kept = filterSessions(list, { query: search, coach: coachFilter, availability, nowMs: nowTick + skewMs, activityLabels: ACTIVITY_LABELS });
+      if (kept.length) out[date] = kept;
+    }
+    return out;
+  }, [sessionsByDate, search, coachFilter, availability, nowTick, skewMs]);
+  const visibleSessions = useMemo(() => visibleDates.flatMap((d) => filteredByDate[d] ?? []), [visibleDates, filteredByDate]);
   const selectedSession = selectedSessionId ? allSessions.find((s) => s.id === selectedSessionId) ?? null : null;
 
   const stats = useMemo(() => {
@@ -909,10 +930,10 @@ export default function SchedulePage() {
   const emptyPeriod = (
     <EmptyState
       icon={CalendarX}
-      title={activityFilter ? "Aucune session pour ce filtre" : "Aucune session sur cette période"}
-      description="Essayez une autre période ou revenez plus tard."
+      title={filtersActive || activityFilter ? "Aucune session ne correspond" : "Aucune session sur cette période"}
+      description={filtersActive ? "Modifiez ou effacez vos filtres pour voir plus de séances." : "Essayez une autre période ou revenez plus tard."}
       action={
-        <button onClick={cal.goToday} className="rounded-xl bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--primary-dark)]">
+        <button onClick={cal.goToday} className="rounded-xl bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-[var(--brand-contrast)] hover:bg-[var(--primary-dark)]">
           Revenir à aujourd&apos;hui
         </button>
       }
@@ -935,7 +956,7 @@ export default function SchedulePage() {
           title="Impossible de charger le planning"
           description={loadError}
           action={
-            <button onClick={() => fetchRange(false)} className="rounded-xl bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-white">
+            <button onClick={() => fetchRange(false)} className="rounded-xl bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-[var(--brand-contrast)]">
               Réessayer
             </button>
           }
@@ -958,10 +979,10 @@ export default function SchedulePage() {
     }
 
     if (view === "month") {
-      const daySessions = monthSelected ? sessionsByDate[monthSelected] ?? [] : [];
+      const daySessions = monthSelected ? filteredByDate[monthSelected] ?? [] : [];
       return (
         <div className="space-y-4">
-          <MonthGrid anchor={anchor} today={today} sessionsByDate={sessionsByDate} selectedDate={monthSelected} onSelectDate={changeDay} />
+          <MonthGrid anchor={anchor} today={today} sessionsByDate={filteredByDate} selectedDate={monthSelected} onSelectDate={changeDay} />
           {monthSelected && (
             <div className="bg-card border border-border rounded-2xl p-5">
               <p className="text-sm font-semibold text-primary mb-3 capitalize">{formatDayLong(monthSelected)}</p>
@@ -980,7 +1001,7 @@ export default function SchedulePage() {
     }
 
     // day + agenda ("À venir"): a list of cards grouped by calendar day
-    const days = visibleDates.filter((d) => (sessionsByDate[d] ?? []).length > 0);
+    const days = visibleDates.filter((d) => (filteredByDate[d] ?? []).length > 0);
     if (days.length === 0) return emptyPeriod;
     return (
       <div className="space-y-5">
@@ -990,7 +1011,7 @@ export default function SchedulePage() {
               {formatDayLong(d)}
               {d === today && <span className="ml-2 rounded-full bg-[var(--primary)]/10 px-2 py-0.5 text-[11px] font-semibold">Aujourd&apos;hui</span>}
             </h3>
-            <div className="space-y-3">{(sessionsByDate[d] ?? []).map(card)}</div>
+            <div className="space-y-3">{(filteredByDate[d] ?? []).map(card)}</div>
           </section>
         ))}
       </div>
@@ -1002,8 +1023,8 @@ export default function SchedulePage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl sm:text-4xl font-bold text-primary">Planning</h1>
-          <p className="mt-1 text-muted">Réservez vos prochaines sessions.</p>
+          <h1 className="text-3xl sm:text-4xl font-extrabold text-primary">Planning</h1>
+          <p className="mt-1 text-muted">Parcourez les séances de votre club et réservez votre place.</p>
         </div>
       </div>
 
@@ -1046,26 +1067,50 @@ export default function SchedulePage() {
         </div>
       )}
 
-      {/* Activity filter */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1">
-        <button
-          onClick={() => setActivityFilter(null)}
-          className={`flex-shrink-0 px-3.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors
-            ${!activityFilter ? "bg-[var(--primary)] text-white" : "bg-muted text-muted hover:bg-muted/70"}`}
-        >
-          Toutes
-        </button>
-        {ACTIVITIES.map((a) => (
-          <button
-            key={a}
-            onClick={() => setActivityFilter(a)}
-            className={`flex-shrink-0 px-3.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors
-              ${activityFilter === a ? "bg-[var(--primary)] text-white" : "bg-muted text-muted hover:bg-muted/70"}`}
-          >
-            {ACTIVITY_LABELS[a]}
-          </button>
-        ))}
-      </div>
+      {/* Search + filters */}
+      <section className="mx-card space-y-3 p-3 sm:p-4" aria-label="Recherche et filtres">
+        <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
+          <div className="relative flex-1">
+            <label htmlFor="planning-search" className="sr-only">Rechercher une séance</label>
+            <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" aria-hidden />
+            <input id="planning-search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Rechercher une activité, un coach, une salle…" className="mx-input pl-9" autoComplete="off" />
+          </div>
+          <div>
+            <label htmlFor="planning-coach" className="sr-only">Filtrer par coach</label>
+            <select id="planning-coach" value={coachFilter} onChange={(e) => setCoachFilter(e.target.value)} className="mx-input lg:w-52">
+              <option value="ALL">Tous les coachs</option>
+              {coaches.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+          <div className="flex max-w-full items-center gap-1 overflow-x-auto rounded-full bg-muted/60 p-1" role="group" aria-label="Disponibilité">
+            {([["all", "Toutes"], ["available", "Disponibles"], ["booked", "Réservées"], ["full", "Complètes"]] as [AvailabilityFilter, string][]).map(([key, label]) => (
+              <button key={key} type="button" onClick={() => setAvailability(key)} aria-pressed={availability === key} className="mx-chip whitespace-nowrap">{label}</button>
+            ))}
+          </div>
+        </div>
+
+        <div className="-mx-1 flex items-center gap-1.5 overflow-x-auto px-1 pb-1" role="group" aria-label="Activité">
+          <button onClick={() => setActivityFilter(null)} aria-pressed={!activityFilter} className="mx-chip flex-shrink-0 whitespace-nowrap">Toutes les activités</button>
+          {ACTIVITIES.map((a) => (
+            <button key={a} onClick={() => setActivityFilter(a)} aria-pressed={activityFilter === a} className="mx-chip flex-shrink-0 whitespace-nowrap">{ACTIVITY_LABELS[a]}</button>
+          ))}
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted">
+          <ul className="flex flex-wrap items-center gap-x-4 gap-y-1" aria-label="Légende">
+            <li className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-emerald-500" />Disponible</li>
+            <li className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-amber-500" />Presque complet</li>
+            <li className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-red-500" />Complet</li>
+            <li className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[var(--primary)]" />Réservé</li>
+            <li className="flex items-center gap-1.5"><Lock size={10} aria-hidden />Réservations fermées</li>
+          </ul>
+          {filtersActive && (
+            <button type="button" onClick={() => { setSearch(""); setCoachFilter("ALL"); setAvailability("all"); }} className="inline-flex items-center gap-1 font-semibold text-[var(--primary)] hover:underline">
+              <Ban size={11} aria-hidden />Effacer la recherche et les filtres
+            </button>
+          )}
+        </div>
+      </section>
 
       {/* Reservation rule, always visible so members know why a button is disabled */}
       <p className="flex items-center gap-1.5 text-xs text-muted">

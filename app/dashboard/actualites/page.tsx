@@ -43,7 +43,7 @@ function formatDate(iso: string) {
 function Avatar({ name, size = "md" }: { name: string; size?: "sm" | "md" }) {
   const cls = size === "sm" ? "h-7 w-7 text-xs" : "h-9 w-9 text-sm";
   return (
-    <div className={`${cls} rounded-full bg-[var(--primary)] flex items-center justify-center text-white font-bold flex-shrink-0`}>
+    <div className={`${cls} rounded-full bg-[var(--primary)] flex items-center justify-center text-[var(--brand-contrast)] font-bold flex-shrink-0`}>
       {name.charAt(0).toUpperCase()}
     </div>
   );
@@ -221,7 +221,7 @@ function PostCard({
               onClick={() => void handleComment()}
               aria-label="Envoyer le commentaire"
               disabled={!commentText.trim() || submitting}
-              className="p-2.5 rounded-full bg-[var(--primary)] text-white hover:bg-[var(--primary-hover)] transition disabled:opacity-40"
+              className="p-2.5 rounded-full bg-[var(--primary)] text-[var(--brand-contrast)] hover:bg-[var(--primary-hover)] transition disabled:opacity-40"
             >
               {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             </button>

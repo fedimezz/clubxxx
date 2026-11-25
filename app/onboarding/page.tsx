@@ -635,7 +635,7 @@ export default function OnboardingWizardPage() {
   const [step, setStep] = useState(0);
   const [form, setForm] = useState<FormData>({
     name: "", email: "", password: "", phone: "",
-    clubName: "", slug: "", planId: "", signupMode: "TRIAL", billingPeriod: "MONTHLY", manualMethod: "BANK_TRANSFER", manualPhone: "", countryCode: "", themeId: "classic",
+    clubName: "", slug: "", planId: "", signupMode: "TRIAL", billingPeriod: "MONTHLY", manualMethod: "BANK_TRANSFER", manualPhone: "", countryCode: "", themeId: "premium-glass",
     primaryColor: "#4f46e5", secondaryColor: "#3b82f6",
     heroTitle: "", heroSubtitle: "", address: "",
   });

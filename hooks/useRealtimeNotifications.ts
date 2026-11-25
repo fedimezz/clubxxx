@@ -3,6 +3,13 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
+import {
+  addLiveNotification,
+  markAllLiveNotificationsRead,
+  markLiveNotificationRead,
+  mergeNotificationFeed,
+  type NotificationFeedState,
+} from "@/lib/notification-feed";
 
 export interface LiveNotification {
   id: string;
@@ -18,25 +25,48 @@ export interface LiveNotification {
 
 export function useRealtimeNotifications() {
   const { isLoggedIn } = useAuth();
-  const [notifications, setNotifications] = useState<LiveNotification[]>([]);
+  const [feed, setFeed] = useState<NotificationFeedState<LiveNotification>>({
+    notifications: [],
+    unreadCount: 0,
+  });
   const [connected, setConnected] = useState(false);
   const sourceRef = useRef<EventSource | null>(null);
+  const liveVersion = useRef(0);
+  const fetchSequence = useRef(0);
+  const liveNotifications = useRef(new Map<string, { version: number; notification: LiveNotification }>());
 
   // Initial load: whatever the member already has from before this tab
   // was open (page refresh, or notifications sent while they were
   // offline). SSE only delivers events that happen WHILE connected — it
   // is not a substitute for fetching history.
   const fetchExisting = useCallback(async () => {
+    const requestId = ++fetchSequence.current;
+    const versionAtStart = liveVersion.current;
     try {
       const res = await fetch("/api/dashboard/notifications", {
         credentials: "include",
+        cache: "no-store",
       });
       if (res.ok) {
-        const json = await res.json();
-        setNotifications(json.notifications ?? []);
+        const json = await res.json() as {
+          notifications?: LiveNotification[];
+          unreadCount?: number;
+        };
+        if (requestId !== fetchSequence.current) return;
+        setFeed((current) => {
+          const pendingLive = [...liveNotifications.current.values()]
+            .filter((entry) => entry.version > versionAtStart)
+            .map((entry) => entry.notification);
+          return mergeNotificationFeed(
+            current,
+            [...pendingLive, ...(Array.isArray(json.notifications) ? json.notifications : [])],
+            Number(json.unreadCount),
+            liveVersion.current === versionAtStart
+          );
+        });
       }
     } catch {
-      // Non-fatal — bell just starts empty and live events still work.
+      // The next SSE reconnect or notification change retries the history sync.
     }
   }, []);
 
@@ -44,6 +74,10 @@ export function useRealtimeNotifications() {
     if (!isLoggedIn) {
       sourceRef.current?.close();
       sourceRef.current = null;
+      fetchSequence.current += 1;
+      liveVersion.current = 0;
+      liveNotifications.current.clear();
+      setFeed({ notifications: [], unreadCount: 0 });
       setConnected(false);
       return;
     }
@@ -56,11 +90,26 @@ export function useRealtimeNotifications() {
     const source = new EventSource(`/api/sse`);
     sourceRef.current = source;
 
-    source.onopen = () => setConnected(true);
+    source.onopen = () => {
+      setConnected(true);
+      void fetchExisting();
+    };
 
     source.addEventListener("notification", (e) => {
-      const notification = JSON.parse((e as MessageEvent).data) as LiveNotification;
-      setNotifications((prev) => [notification, ...prev]);
+      try {
+        const notification = JSON.parse((e as MessageEvent).data) as LiveNotification;
+        if (!notification?.id || !notification.sentAt) return;
+        const version = ++liveVersion.current;
+        liveNotifications.current.set(notification.id, { version, notification });
+        while (liveNotifications.current.size > 50) {
+          const oldest = liveNotifications.current.keys().next().value;
+          if (oldest === undefined) break;
+          liveNotifications.current.delete(oldest);
+        }
+        setFeed((current) => addLiveNotification(current, notification));
+      } catch {
+        void fetchExisting();
+      }
     });
 
     source.onerror = () => {
@@ -75,34 +124,37 @@ export function useRealtimeNotifications() {
     };
   }, [isLoggedIn, fetchExisting]);
 
-  const unreadCount = notifications.filter((n) => !n.isRead).length;
+  useEffect(() => {
+    const refresh = () => void fetchExisting();
+    window.addEventListener("clubx:notifications-changed", refresh);
+    return () => window.removeEventListener("clubx:notifications-changed", refresh);
+  }, [fetchExisting]);
 
   const markAsRead = useCallback(async (id: string) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
-    );
+    setFeed((current) => markLiveNotificationRead(current, id));
     try {
-      await fetch(`/api/dashboard/notifications/${id}`, {
+      const response = await fetch(`/api/dashboard/notifications/${id}`, {
         method: "PUT",
         credentials: "include",
       });
+      if (!response.ok) void fetchExisting();
     } catch {
-      // Best-effort — UI already shows it as read; a failed sync here
-      // just means it may show unread again after a refresh.
+      void fetchExisting();
     }
-  }, []);
+  }, [fetchExisting]);
 
   const markAllAsRead = useCallback(async () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    setFeed((current) => markAllLiveNotificationsRead(current));
     try {
-      await fetch("/api/dashboard/notifications/read-all", {
+      const response = await fetch("/api/dashboard/notifications/read-all", {
         method: "PUT",
         credentials: "include",
       });
+      if (!response.ok) void fetchExisting();
     } catch {
-      // Best-effort, same reasoning as markAsRead.
+      void fetchExisting();
     }
-  }, []);
+  }, [fetchExisting]);
 
-  return { notifications, unreadCount, connected, markAsRead, markAllAsRead };
+  return { notifications: feed.notifications, unreadCount: feed.unreadCount, connected, markAsRead, markAllAsRead };
 }

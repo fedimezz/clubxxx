@@ -74,7 +74,8 @@ export async function POST(request: NextRequest) {
 
     const parsed = designChangeRequestSchema.safeParse(await request.json().catch(() => null));
     if (!parsed.success) return NextResponse.json({ error: formatZodError(parsed.error) }, { status: 400 });
-    const { themeId, heroModel, reason } = parsed.data;
+    const themeId = parsed.data.themeId === undefined ? undefined : resolveThemeId(parsed.data.themeId);
+    const { heroModel, reason } = parsed.data;
 
     const settings = await prisma.gymSettings.findUnique({
       where: { clubId },

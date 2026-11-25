@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Loader2, RefreshCw, BellOff, CheckCheck, Trash2 } from "lucide-react";
 
 import NotificationCard, { type NotificationItem } from "@/components/notifications/NotificationCard";
+import { notifyNotificationsChanged } from "@/components/member/MemberShell";
 
 export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
@@ -58,6 +59,7 @@ export default function NotificationsPage() {
         method: "PUT",
         credentials: "include",
       });
+      notifyNotificationsChanged();
     } catch {
       // best-effort; a manual refresh will resync state if this fails
     }
@@ -81,6 +83,7 @@ export default function NotificationsPage() {
       setNotifications(previous);
     } finally {
       setMarkingAll(false);
+      notifyNotificationsChanged();
     }
   };
 
@@ -106,6 +109,7 @@ export default function NotificationsPage() {
       if (wasUnread) setUnreadCount((prev) => prev + 1);
     } finally {
       setDeletingId(null);
+      notifyNotificationsChanged();
     }
   };
 
@@ -128,6 +132,7 @@ export default function NotificationsPage() {
       setNotifications(previous);
     } finally {
       setClearingAll(false);
+      notifyNotificationsChanged();
     }
   };
 
@@ -158,7 +163,7 @@ export default function NotificationsPage() {
             <button
               onClick={handleMarkAllRead}
               disabled={markingAll}
-              className="flex items-center gap-2 px-4 py-2.5 text-sm bg-[var(--primary)] text-white rounded-xl hover:bg-[var(--primary-dark)] transition-colors disabled:opacity-50 font-medium"
+              className="flex items-center gap-2 px-4 py-2.5 text-sm bg-[var(--primary)] text-[var(--brand-contrast)] rounded-xl hover:bg-[var(--primary-dark)] transition-colors disabled:opacity-50 font-medium"
             >
               {markingAll ? (
                 <Loader2 size={16} className="animate-spin" />

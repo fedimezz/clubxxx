@@ -6,6 +6,7 @@ import { verifyPassword } from "@/lib/bcrypt";
 import { withSubscriptionExpiry } from "@/lib/membership-card";
 import { accountDeleteSchema, formatZodError, profileUpdateSchema } from "@/lib/validation";
 import { logAction } from "@/lib/activity-log";
+import { getLockedStorageSnapshot, storageQuotaAllows, storageQuotaResponse } from "@/lib/storage-quota";
 
 // GET /api/dashboard/profile
 export async function GET(request: NextRequest) {
@@ -35,6 +36,7 @@ export async function GET(request: NextRequest) {
             status: "ACTIVE",
             endDate: { gt: new Date() },
           },
+          orderBy: { startDate: "desc" },
           take: 1,
           include: { plan: true },
         },
@@ -121,20 +123,58 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const updatedUser = await prisma.user.update({
-      where: { id: payload.id },
-      data: updateData,
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        phone: true,
-        avatar: true,
-        role: true,
-        isActive: true,
-        createdAt: true,
-      },
-    });
+    const select = {
+      id: true,
+      name: true,
+      email: true,
+      phone: true,
+      avatar: true,
+      role: true,
+      isActive: true,
+      createdAt: true,
+    } as const;
+    let updatedUser;
+    if (typeof avatar === "string" && avatar.startsWith("data:image/") && auth.user.role !== "SUPER_ADMIN") {
+      const clubId = auth.user.clubId;
+      if (!clubId) {
+        return NextResponse.json({ error: "Club introuvable pour vérifier le quota de stockage." }, { status: 403 });
+      }
+
+      const result = await prisma.$transaction(async (tx) => {
+        const snapshot = await getLockedStorageSnapshot(tx, clubId);
+        if (!snapshot.ok) return { ok: false as const, code: snapshot.code };
+
+        const currentUser = await tx.user.findUnique({
+          where: { id: payload.id },
+          select: { avatar: true },
+        });
+        const oldAvatarBytes = currentUser?.avatar?.startsWith("data:image/")
+          ? BigInt(Buffer.byteLength(currentUser.avatar, "utf8"))
+          : BigInt(0);
+        const newAvatarBytes = BigInt(Buffer.byteLength(avatar, "utf8"));
+        if (!storageQuotaAllows(snapshot, newAvatarBytes, oldAvatarBytes)) {
+          return { ok: false as const, code: "QUOTA_EXCEEDED" as const };
+        }
+
+        const user = await tx.user.update({
+          where: { id: payload.id },
+          data: updateData,
+          select,
+        });
+        return { ok: true as const, user };
+      });
+      if (!result.ok) {
+        const response = storageQuotaResponse(result.code);
+        return NextResponse.json({ error: response.error, code: result.code }, { status: response.status });
+      }
+      updatedUser = result.user;
+    } else {
+      updatedUser = await prisma.user.update({
+        where: { id: payload.id },
+        data: updateData,
+        select,
+      });
+    }
 
     await logAction(request, {
       clubId: auth.user.clubId,

@@ -1,6 +1,6 @@
 "use client";
 
-// /admin/appearance — OWNER-only. Pick one of the five website themes, choose
+// /admin/appearance — OWNER-only. Pick one of the nine website themes, choose
 // the 3D hero object (with a live preview on the theme's own backdrop), and set
 // the club's branding (logo + two colors). Everything is saved per club in
 // GymSettings (themeId, heroModel, primaryColor, secondaryColor, logoUrl) and
@@ -130,13 +130,13 @@ function AppearanceContent() {
   const dirty = JSON.stringify(draft) !== JSON.stringify(saved);
 
   const pickTheme = (theme: ThemePreset) =>
-    // A new theme brings its own default colors and 3D object; both stay editable below.
-    setDraft((d) => (d ? { ...d, themeId: theme.id, primaryColor: theme.primaryColor, secondaryColor: theme.secondaryColor, heroModel: d.heroModel === "custom" || d.heroModel === "none" ? d.heroModel : null } : d));
+    // Theme changes never overwrite an explicitly selected built-in or custom 3D model.
+    setDraft((d) => (d ? { ...d, themeId: theme.id, primaryColor: theme.primaryColor, secondaryColor: theme.secondaryColor } : d));
 
   // "Appliquer le thème": stage the theme and persist it right away. ONLY theme fields change:
   // name, phone, content and logo stay as they are (the server also enforces the design lock).
   const applyTheme = (theme: ThemePreset) => {
-    const next: Draft = { ...draft, themeId: theme.id, primaryColor: theme.primaryColor, secondaryColor: theme.secondaryColor, heroModel: draft.heroModel === "custom" || draft.heroModel === "none" ? draft.heroModel : null };
+    const next: Draft = { ...draft, themeId: theme.id, primaryColor: theme.primaryColor, secondaryColor: theme.secondaryColor };
     setDraft(next);
     void save(next);
   };

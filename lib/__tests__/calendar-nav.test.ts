@@ -6,6 +6,7 @@ import {
   isReservationOpenAt, clockTime, findSlotConflicts, conflictingIds, timesOverlap, mondaysInRange,
   type CalendarView,
 } from "../calendar-nav";
+import { startOfDayInZone } from "../timezone";
 
 describe("calendar arithmetic is pure and timezone-independent", () => {
   it("addWeeks crosses month and year boundaries", () => {
@@ -159,6 +160,11 @@ describe("date validation + URL state", () => {
 });
 
 describe("session date + reservation instant (DST aware)", () => {
+  it("finds the start of the club-local day, not the server-local day", () => {
+    expect(startOfDayInZone(new Date("2026-11-23T23:30:00Z"), "Africa/Tunis").toISOString())
+      .toBe("2026-11-23T23:00:00.000Z");
+  });
+
   it("maps a plan Monday + day name to the calendar date", () => {
     expect(sessionDateIso("2026-11-23", "MONDAY")).toBe("2026-11-23");
     expect(sessionDateIso("2026-11-23", "SUNDAY")).toBe("2026-11-29");

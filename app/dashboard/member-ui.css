@@ -1,0 +1,104 @@
+/* ═══ ClubX member skin ════════════════════════════════════════════════════════════════════════
+   Scoped to the member/coach dashboard root (`.clubx-member`, see app/dashboard/layout.tsx).
+   It re-maps design tokens, so every existing member page (profile, membership, notifications,
+   settings, planning, reservations) picks up the premium look without logic changes. The public
+   club website, the admin area and club theme colours are NOT affected. To revert the look,
+   remove the class from the layout root. */
+.clubx-member { --glow: 22 163 74; --primary: #15803d; --primary-dark: #166534; --primary-light: #22c55e; --brand-contrast: #ffffff; }
+.dark .clubx-member {
+    --glow: 57 230 110;
+    --primary: #39e66e; --primary-dark: #22c55e; --primary-light: #86f2a8; --brand-contrast: #03130a;
+    --bg-primary: #05080a; --bg-secondary: #080d0c; --bg-card: #0b1210; --bg-muted: #131c19;
+    --border-light: rgba(148, 210, 170, 0.12); --border-medium: rgba(148, 210, 170, 0.24);
+    --text-muted: #8fa39a;
+    --brand: #39e66e;
+}
+.clubx-member { font-feature-settings: "cv11", "ss01"; }
+
+/* ── Sidebar ─────────────────────────────────────────────────────────────────────────────── */
+.mx-sidebar {
+    background:
+        radial-gradient(120% 40% at 0% 100%, rgb(var(--glow) / 0.16), transparent 65%),
+        radial-gradient(90% 26% at 100% 0%, rgb(var(--glow) / 0.08), transparent 70%),
+        var(--bg-secondary);
+}
+.mx-nav { position: relative; display: flex; align-items: center; gap: .75rem; border-radius: .85rem; padding: .65rem .9rem;
+    font-size: .875rem; font-weight: 600; color: var(--text-muted); transition: background .15s, color .15s, transform .15s; }
+.mx-nav:hover { background: rgb(var(--glow) / 0.09); color: var(--text-primary); }
+.mx-nav[aria-current="page"] {
+    background: var(--primary); color: var(--brand-contrast);
+    box-shadow: 0 10px 26px -12px rgb(var(--glow) / 0.95); }
+.mx-nav[aria-current="page"] svg { color: var(--brand-contrast); }
+.mx-nav:focus-visible, .mx-cta:focus-visible, .mx-ghost:focus-visible, .mx-chip:focus-visible {
+    outline: 2px solid var(--primary); outline-offset: 2px; }
+.mx-badge { margin-left: auto; min-width: 1.35rem; height: 1.35rem; padding: 0 .4rem; border-radius: 9999px; display: inline-flex;
+    align-items: center; justify-content: center; font-size: .7rem; font-weight: 800; background: var(--primary); color: var(--brand-contrast); }
+.mx-nav[aria-current="page"] .mx-badge { background: var(--brand-contrast); color: var(--primary); }
+
+/* ── Surfaces ────────────────────────────────────────────────────────────────────────────── */
+.mx-card { border-radius: 1.1rem; border: 1px solid var(--border-light); background: var(--bg-card); }
+.dark .mx-card { box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.03), 0 18px 40px -30px rgb(0 0 0 / 0.9); }
+.mx-hero { position: relative; overflow: hidden; border-radius: 1.25rem; border: 1px solid rgb(var(--glow) / 0.35);
+    background:
+        radial-gradient(ellipse 60% 140% at 85% 40%, rgb(var(--glow) / 0.20), transparent 70%),
+        linear-gradient(120deg, color-mix(in srgb, var(--primary) 7%, var(--bg-card)), var(--bg-card) 65%); }
+.dark .mx-hero { box-shadow: 0 0 0 1px rgb(var(--glow) / 0.08), 0 28px 70px -40px rgb(var(--glow) / 0.65);
+    background:
+        radial-gradient(ellipse 60% 140% at 85% 40%, rgb(var(--glow) / 0.32), transparent 70%),
+        linear-gradient(120deg, #06130c, #050b09 65%); }
+.mx-hero::after { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .5;
+    background: repeating-linear-gradient(115deg, transparent 0 36px, rgb(var(--glow) / 0.06) 36px 38px); }
+.mx-hero > *:not(.absolute) { position: relative; z-index: 1; }
+
+.mx-tint-green  { --tint: 34 197 94; }  .mx-tint-blue  { --tint: 59 130 246; }
+.mx-tint-purple { --tint: 168 85 247; } .mx-tint-gold  { --tint: 234 179 8; }
+.mx-kpi { position: relative; overflow: hidden; border-radius: 1.1rem; border: 1px solid rgb(var(--tint) / 0.30);
+    background: linear-gradient(135deg, rgb(var(--tint) / 0.12), var(--bg-card) 72%); transition: transform .2s, box-shadow .2s, border-color .2s; }
+.dark .mx-kpi { background: linear-gradient(150deg, rgb(var(--tint) / 0.22), rgb(var(--tint) / 0.05) 58%, var(--bg-card)); box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.04); }
+a.mx-kpi:hover { transform: translateY(-2px); border-color: rgb(var(--tint) / 0.6); box-shadow: 0 16px 34px -20px rgb(var(--tint) / 0.85); }
+.mx-kpi-icon { display: grid; place-items: center; width: 2.9rem; height: 2.9rem; border-radius: .85rem; color: rgb(var(--tint));
+    background: rgb(var(--tint) / 0.16); border: 1px solid rgb(var(--tint) / 0.35); }
+
+/* ── Controls ────────────────────────────────────────────────────────────────────────────── */
+.mx-cta { display: inline-flex; align-items: center; justify-content: center; gap: .45rem; border-radius: .8rem; background: var(--primary);
+    color: var(--brand-contrast); font-weight: 700; transition: transform .15s, box-shadow .15s, filter .15s; box-shadow: 0 10px 26px -12px rgb(var(--glow) / 0.95); }
+.mx-cta:hover:not(:disabled):not([aria-disabled="true"]) { transform: translateY(-1px); filter: brightness(1.06); }
+.mx-cta:disabled, .mx-cta[aria-disabled="true"] { opacity: .5; cursor: not-allowed; box-shadow: none; }
+.mx-ghost { display: inline-flex; align-items: center; justify-content: center; gap: .45rem; border-radius: .8rem; border: 1px solid var(--border-medium);
+    background: rgb(255 255 255 / 0.02); color: var(--text-primary); font-weight: 600; transition: background .15s, border-color .15s; }
+.mx-ghost:hover:not(:disabled) { border-color: rgb(var(--glow) / 0.6); background: rgb(var(--glow) / 0.08); }
+.mx-ghost:disabled { opacity: .5; cursor: not-allowed; }
+.mx-chip { border-radius: 9999px; padding: .38rem .9rem; font-size: .75rem; font-weight: 700; color: var(--text-muted); transition: background .15s, color .15s; }
+.mx-chip[aria-pressed="true"], .mx-chip[aria-selected="true"] { background: var(--primary); color: var(--brand-contrast); box-shadow: 0 6px 18px -8px rgb(var(--glow) / 0.9); }
+.mx-chip:not([aria-pressed="true"]):not([aria-selected="true"]):hover { background: color-mix(in srgb, var(--primary) 14%, transparent); color: var(--text-primary); }
+/* in the components layer so Tailwind utilities (pl-9, py-2 …) can still override its padding */
+@layer components {
+.mx-input { width: 100%; border-radius: .8rem; border: 1px solid var(--border-medium); background: var(--bg-secondary); color: var(--text-primary);
+    padding: .6rem .9rem; font-size: .875rem; transition: border-color .15s, box-shadow .15s; }
+.mx-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgb(var(--glow) / 0.22); }
+}
+
+/* VIP pass */
+.mx-vip { position: relative; overflow: hidden; border-radius: 1.1rem; border: 1px solid rgb(234 179 8 / 0.35);
+    background: linear-gradient(160deg, rgb(234 179 8 / 0.14), transparent 70%), var(--bg-card); }
+
+/* Status pills (colour is never the only cue: each carries a label) */
+.mx-pill { display: inline-flex; align-items: center; gap: .3rem; border-radius: 9999px; padding: .2rem .6rem; font-size: .7rem; font-weight: 700; border: 1px solid transparent; }
+.mx-pill-ok     { color: var(--success-fg); background: rgb(34 197 94 / 0.12);  border-color: rgb(34 197 94 / 0.3); }
+.mx-pill-warn   { color: var(--warning-fg); background: rgb(245 158 11 / 0.12); border-color: rgb(245 158 11 / 0.3); }
+.mx-pill-danger { color: var(--danger-fg);  background: rgb(239 68 68 / 0.12);  border-color: rgb(239 68 68 / 0.3); }
+.mx-pill-info   { color: var(--info-fg);    background: rgb(59 130 246 / 0.12); border-color: rgb(59 130 246 / 0.3); }
+.mx-pill-mute   { color: var(--text-muted); background: rgb(148 163 184 / 0.12); border-color: rgb(148 163 184 / 0.25); }
+
+/* Motion */
+@keyframes mx-rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+.mx-rise { animation: mx-rise .45s cubic-bezier(.16, 1, .3, 1) both; animation-delay: calc(var(--i, 0) * 55ms); }
+@keyframes mx-draw { from { stroke-dasharray: 2000; stroke-dashoffset: 2000; } to { stroke-dasharray: 2000; stroke-dashoffset: 0; } }
+.mx-draw { animation: mx-draw 1s ease-out both; }
+@keyframes mx-ring { from { stroke-dashoffset: var(--ring-full); } to { stroke-dashoffset: var(--ring-to); } }
+.mx-ring-arc { animation: mx-ring .9s cubic-bezier(.16, 1, .3, 1) both; }
+.mx-hero-mask { -webkit-mask-image: linear-gradient(to left, #000 50%, transparent); mask-image: linear-gradient(to left, #000 50%, transparent); }
+@media (prefers-reduced-motion: reduce) {
+    .mx-rise, .mx-draw, .mx-ring-arc { animation: none; }
+    a.mx-kpi:hover, .mx-cta:hover { transform: none; }
+}

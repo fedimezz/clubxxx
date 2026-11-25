@@ -12,8 +12,15 @@
 // to be set — see lib/cloudinary.ts.
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
-import { uploadBufferToCloudinary, isCloudinaryConfigured } from "@/lib/cloudinary";
+import { deleteCloudinaryAsset, uploadBufferToCloudinary, isCloudinaryConfigured } from "@/lib/cloudinary";
 import { checkRateLimit } from "@/lib/rate-limit";
+import {
+  completeCloudinaryUpload,
+  markStorageInventoryIncomplete,
+  releaseStorageReservation,
+  reserveCloudinaryUpload,
+  storageQuotaResponse,
+} from "@/lib/storage-quota";
 
 const ALLOWED_PREFIXES = ["image/", "video/", "audio/"] as const;
 // image/svg+xml is deliberately excluded even though it matches the
@@ -67,6 +74,19 @@ async function readBoundedBody(request: Request, maxBytes: number): Promise<Uint
 const STAFF_UPLOADS_PER_HOUR = 60;
 const MEMBER_UPLOADS_PER_HOUR = 10;
 
+async function compensateCloudinaryUpload(clubId: string, publicId: string, resourceType: "image" | "video"): Promise<void> {
+  try {
+    await deleteCloudinaryAsset(publicId, resourceType);
+  } catch (cleanupError) {
+    console.error("Cloudinary upload compensation error:", cleanupError);
+    try {
+      await markStorageInventoryIncomplete(clubId);
+    } catch (inventoryError) {
+      console.error("Storage inventory invalidation error:", inventoryError);
+    }
+  }
+}
+
 /** The declared MIME type is client-controlled; check the real bytes for images. */
 function looksLikeImage(buf: Buffer): boolean {
   if (buf.length < 12) return false;
@@ -119,7 +139,7 @@ export async function POST(req: NextRequest) {
         "Cloudinary env vars missing (CLOUDINARY_CLOUD_NAME / CLOUDINARY_API_KEY / CLOUDINARY_API_SECRET)."
       );
       return NextResponse.json(
-        { error: "Le stockage des fichiers n'est pas configuré côté serveur (Cloudinary)." },
+        { error: "Le stockage des fichiers n'est pas configuré côté serveur (Cloudinary).", code: "STORAGE_NOT_CONFIGURED" },
         { status: 500 }
       );
     }
@@ -165,6 +185,9 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+    if (file.size === 0) {
+      return NextResponse.json({ error: "Le fichier est vide." }, { status: 400 });
+    }
 
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
@@ -180,6 +203,12 @@ export async function POST(req: NextRequest) {
       prefix === "video/" ? "video" : prefix === "audio/" ? "audio" : "image";
     const cloudinaryResourceType = mediaType === "image" ? "image" : "video";
 
+    const reservation = await reserveCloudinaryUpload(clubId, buffer.byteLength);
+    if (!reservation.ok) {
+      const response = storageQuotaResponse(reservation.code);
+      return NextResponse.json({ error: response.error, code: reservation.code }, { status: response.status });
+    }
+
     let result;
     try {
       result = await uploadBufferToCloudinary(buffer, {
@@ -190,7 +219,40 @@ export async function POST(req: NextRequest) {
       });
     } catch (err) {
       console.error("Cloudinary upload error:", err);
+      try {
+        await releaseStorageReservation(clubId, reservation.reservationId);
+      } catch (cleanupError) {
+        console.error("Storage reservation cleanup error:", cleanupError);
+      }
       return NextResponse.json({ error: "Échec du téléversement vers le stockage" }, { status: 500 });
+    }
+
+    try {
+      const completed = await completeCloudinaryUpload({
+        clubId,
+        reservationId: reservation.reservationId,
+        resourceType: cloudinaryResourceType,
+        publicId: result.public_id,
+        byteSize: result.bytes,
+      });
+      if (!completed.ok) {
+        await compensateCloudinaryUpload(clubId, result.public_id, cloudinaryResourceType);
+        try {
+          await releaseStorageReservation(clubId, reservation.reservationId);
+        } catch (cleanupError) {
+          console.error("Storage reservation cleanup error:", cleanupError);
+        }
+        const response = storageQuotaResponse(completed.code);
+        return NextResponse.json({ error: response.error, code: completed.code }, { status: response.status });
+      }
+    } catch (error) {
+      await compensateCloudinaryUpload(clubId, result.public_id, cloudinaryResourceType);
+      try {
+        await releaseStorageReservation(clubId, reservation.reservationId);
+      } catch (cleanupError) {
+        console.error("Storage reservation cleanup error:", cleanupError);
+      }
+      throw error;
     }
 
     return NextResponse.json({

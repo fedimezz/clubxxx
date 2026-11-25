@@ -19,6 +19,8 @@ vi.mock("@/lib/rate-limit", () => ({
 const clubFindUnique = vi.fn();
 const saasPlanFindFirst = vi.fn();
 const upload = vi.fn();
+const reserveStorage = vi.fn();
+const completeStorage = vi.fn();
 vi.mock("@/lib/prisma", () => ({
   default: {
     club: { findUnique: (...a: unknown[]) => clubFindUnique(...a) },
@@ -30,12 +32,24 @@ vi.mock("@/lib/prisma", () => ({
 vi.mock("@/lib/cloudinary", () => ({
   isCloudinaryConfigured: true,
   uploadBufferToCloudinary: (...a: unknown[]) => upload(...a),
+  deleteCloudinaryAsset: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock("@/lib/storage-quota", () => ({
+  reserveCloudinaryUpload: (...a: unknown[]) => reserveStorage(...a),
+  completeCloudinaryUpload: (...a: unknown[]) => completeStorage(...a),
+  releaseStorageReservation: vi.fn().mockResolvedValue(undefined),
+  storageQuotaResponse: (code: string) => ({
+    status: code === "INVENTORY_REQUIRED" ? 503 : 402,
+    error: code === "INVENTORY_REQUIRED" ? "Inventory required" : "Storage quota reached",
+  }),
 }));
 
 beforeEach(() => {
   vi.clearAllMocks();
   clubFindUnique.mockResolvedValue(null);
-  upload.mockResolvedValue({ secure_url: "https://cdn.test/x.png", resource_type: "image" });
+  upload.mockResolvedValue({ secure_url: "https://cdn.test/x.png", public_id: "clubx/x", bytes: 72 });
+  reserveStorage.mockResolvedValue({ ok: true, reservationId: "reservation-1" });
+  completeStorage.mockResolvedValue({ ok: true, reservationId: "reservation-1" });
 });
 afterEach(() => vi.unstubAllEnvs());
 
@@ -99,6 +113,23 @@ describe("POST /api/upload", () => {
     const res = await call(new File([PNG], "a.png", { type: "image/png" }));
     expect(res.status).toBeLessThan(300);
     expect(upload.mock.calls[0][1]).toMatchObject({ folder: "clubs/club-42" });
+    expect(reserveStorage).toHaveBeenCalledWith("club-42", PNG.byteLength);
+    expect(completeStorage).toHaveBeenCalledWith(expect.objectContaining({
+      clubId: "club-42",
+      resourceType: "image",
+      publicId: "clubx/x",
+      byteSize: 72,
+    }));
+  });
+
+  it("blocks uploads before Cloudinary when the tenant quota is exhausted", async () => {
+    asUser("MEMBER");
+    reserveStorage.mockResolvedValue({ ok: false, code: "QUOTA_EXCEEDED" });
+
+    const res = await call(new File([PNG], "a.png", { type: "image/png" }));
+
+    expect(res.status).toBe(402);
+    expect(upload).not.toHaveBeenCalled();
   });
 
   it("a member CANNOT upload video or audio", async () => {

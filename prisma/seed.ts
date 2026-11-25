@@ -208,7 +208,17 @@ async function main() {
     const club = await prisma.club.upsert({
       where: { slug: clubDef.slug },
       update: { name: clubDef.name, status: ClubStatus.ACTIVE },
-      create: { slug: clubDef.slug, name: clubDef.name, status: ClubStatus.ACTIVE },
+      create: {
+        slug: clubDef.slug,
+        name: clubDef.name,
+        status: ClubStatus.ACTIVE,
+        storage: { create: { inventoryCompletedAt: new Date() } },
+      },
+    });
+    await prisma.clubStorage.upsert({
+      where: { clubId: club.id },
+      create: { clubId: club.id, inventoryCompletedAt: new Date() },
+      update: { updatedAt: new Date() },
     });
     console.log(`Club ready: ${club.name} (${club.slug})`);
 

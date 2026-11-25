@@ -85,7 +85,7 @@ export default function ActiveSubscriptionCard({ subscription, onResumePayment, 
                 <button
                   onClick={onResumePayment}
                   disabled={resuming}
-                  className="w-full flex items-center justify-center gap-2 bg-[var(--primary)] text-white py-2.5 rounded-xl font-medium hover:bg-[var(--primary-dark)] transition-colors disabled:opacity-60"
+                  className="w-full flex items-center justify-center gap-2 bg-[var(--primary)] text-[var(--brand-contrast)] py-2.5 rounded-xl font-medium hover:bg-[var(--primary-dark)] transition-colors disabled:opacity-60"
                 >
                   {resuming ? (
                     <Loader2 size={16} className="animate-spin" />

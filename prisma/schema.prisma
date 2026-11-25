@@ -145,6 +145,7 @@ model Club {
   subscription ClubSubscription?
   settings     GymSettings?
   heroModel    ClubHeroModel?
+  storage      ClubStorage?
 
   users                 User[]
   coaches               Coach[]
@@ -173,6 +174,49 @@ model Club {
 
   @@index([status])
   @@map("clubs")
+}
+
+model ClubStorage {
+  clubId               String    @id
+  cloudinaryBytes      BigInt    @default(0)
+  inventoryCompletedAt DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  club         Club                 @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  assets       CloudinaryAsset[]
+  reservations StorageReservation[]
+
+  @@map("club_storage")
+}
+
+model CloudinaryAsset {
+  id           String   @id @default(cuid())
+  clubId       String
+  resourceType String
+  publicId     String
+  byteSize     BigInt
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  storage ClubStorage @relation(fields: [clubId], references: [clubId], onDelete: Cascade)
+
+  @@unique([clubId, resourceType, publicId])
+  @@index([clubId])
+  @@map("cloudinary_assets")
+}
+
+model StorageReservation {
+  id            String   @id @default(cuid())
+  clubId        String
+  reservedBytes BigInt
+  expiresAt     DateTime
+  createdAt     DateTime @default(now())
+
+  storage ClubStorage @relation(fields: [clubId], references: [clubId], onDelete: Cascade)
+
+  @@index([clubId, expiresAt])
+  @@map("storage_reservations")
 }
 
 // ─── SaaS Plan (platform plan catalog) ─────────────────────────────────────────
@@ -264,12 +308,12 @@ model ClubSubscription {
 // ClubSubscription.providerCustomerId), so `providerRef` is just an opaque
 // nullable string for whatever payment provider ends up wired in.
 model SaasPayment {
-  id              String    @id @default(cuid())
+  id              String        @id @default(cuid())
   clubId          String
   subscriptionId  String
   amount          Float
-  currency        String    @default("USD")
-  status          String    @default("PENDING") // PENDING | PAID | FAILED | REFUNDED
+  currency        String        @default("USD")
+  status          String        @default("PENDING") // PENDING | PAID | FAILED | REFUNDED
   providerRef     String?
   paymentProvider String?
   countryCode     String?
@@ -277,7 +321,7 @@ model SaasPayment {
   // so the period is never taken from client-supplied data at settlement time.
   billingPeriod   BillingPeriod @default(MONTHLY)
   paidAt          DateTime?
-  createdAt       DateTime  @default(now())
+  createdAt       DateTime      @default(now())
 
   club         Club             @relation(fields: [clubId], references: [id], onDelete: Cascade)
   subscription ClubSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
@@ -755,17 +799,17 @@ model Promotion {
 // re-assigns the row, so the previous user stops receiving that device's pushes.
 // clubId is denormalized (like other tenant tables) so every send is scoped.
 model DeviceToken {
-  id         String    @id @default(cuid())
+  id         String   @id @default(cuid())
   clubId     String
   userId     String
-  token      String    @unique
+  token      String   @unique
   platform   String // "ios" | "android"
   deviceName String?
   appVersion String?
-  isActive   Boolean   @default(true)
-  lastSeenAt DateTime  @default(now())
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  isActive   Boolean  @default(true)
+  lastSeenAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -811,20 +855,20 @@ model GymSettings {
   // One of THEME_PRESETS in lib/website-themes.ts, or "custom" once the
   // owner tweaks colors away from a preset. Purely descriptive — the actual
   // rendered colors are primaryColor/secondaryColor above.
-  themeId                    String? @default("classic")
+  themeId                    String?   @default("classic")
   // 3D hero object chosen by the owner (see lib/website-themes.ts HERO_MODELS).
   // Null = the default model of the selected theme.
   heroModel                  String?
   // Flips true the first time the owner completes the setup wizard
   // (POST /api/admin/website-setup {action:"complete"} while phase="initial").
-  websiteSetupCompleted      Boolean @default(false)
+  websiteSetupCompleted      Boolean   @default(false)
   // Flips true (together with websiteCustomizationLocked) when the owner
   // completes their one allowed extra full customization session.
-  websiteExtraEditUsed       Boolean @default(false)
+  websiteExtraEditUsed       Boolean   @default(false)
   // Once true, PUT /api/admin/settings and PUT /api/admin/page-content
   // reject direct edits (see lib/website-setup.ts) — the owner must use
   // WebsiteChangeRequest instead.
-  websiteCustomizationLocked Boolean @default(false)
+  websiteCustomizationLocked Boolean   @default(false)
   // Set once, when the club confirms its theme + 3D model (wizard completed, or first save in
   // manual mode). From then on theme / heroModel can only change through an APPROVED
   // DesignChangeRequest. Enforced by database triggers (migration 20261017000100), not only by
@@ -836,7 +880,7 @@ model GymSettings {
   websiteSetupMode           String?
   // Premium themes / 3D models this club has paid for. "pack" unlocks everything;
   // otherwise a list of theme or hero-model ids. Granted by the platform team only.
-  premiumUnlocks             String[] @default([])
+  premiumUnlocks             String[]  @default([])
 
   // ─── Reservations ────────────────────────────────────────────────────────
   // IANA timezone in which Session.startTime ("HH:mm") is expressed, and the
@@ -1108,44 +1152,44 @@ enum ServiceRequestStatus {
 }
 
 model DomainRequest {
-  id            String              @id @default(cuid())
-  clubId        String
-  requestedBy   String
-  domain        String
-  status        DomainRequestStatus @default(PENDING)
-  reviewedBy    String?
-  reviewNote    String?
-  reviewedAt    DateTime?
+  id              String              @id @default(cuid())
+  clubId          String
+  requestedBy     String
+  domain          String
+  status          DomainRequestStatus @default(PENDING)
+  reviewedBy      String?
+  reviewNote      String?
+  reviewedAt      DateTime?
   dnsInstructions Json?
-  priceAtRequest Float
-  currency       String             @default("USD")
-  createdAt     DateTime            @default(now())
-  updatedAt     DateTime            @updatedAt
+  priceAtRequest  Float
+  currency        String              @default("USD")
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
 
   club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
 
+  @@unique([domain])
   @@index([clubId])
   @@index([status])
-  @@unique([domain])
   @@map("domain_requests")
 }
 
 model ServiceRequest {
-  id            String               @id @default(cuid())
-  clubId        String
-  requestedBy   String
-  type          ServiceRequestType
-  status        ServiceRequestStatus @default(PENDING)
-  description   String?              @db.Text
-  notes         String?
-  reviewedBy    String?
-  reviewNote    String?
-  reviewedAt    DateTime?
-  completedAt   DateTime?
+  id             String               @id @default(cuid())
+  clubId         String
+  requestedBy    String
+  type           ServiceRequestType
+  status         ServiceRequestStatus @default(PENDING)
+  description    String?              @db.Text
+  notes          String?
+  reviewedBy     String?
+  reviewNote     String?
+  reviewedAt     DateTime?
+  completedAt    DateTime?
   priceAtRequest Float
-  currency       String              @default("USD")
-  createdAt     DateTime             @default(now())
-  updatedAt     DateTime             @updatedAt
+  currency       String               @default("USD")
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
 
   club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
 
@@ -1156,14 +1200,14 @@ model ServiceRequest {
 }
 
 model ServicePrice {
-  id        String  @id @default(cuid())
-  serviceType String @unique
-  price     Float
-  currency  String  @default("USD")
-  isActive  Boolean @default(true)
-  updatedBy String?
-  updatedAt DateTime @updatedAt
-  createdAt DateTime @default(now())
+  id          String   @id @default(cuid())
+  serviceType String   @unique
+  price       Float
+  currency    String   @default("USD")
+  isActive    Boolean  @default(true)
+  updatedBy   String?
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
 
   @@map("service_prices")
 }
@@ -1187,28 +1231,28 @@ enum ManualPaymentStatus {
 }
 
 model ManualPaymentRequest {
-  id           String              @id @default(cuid())
-  clubId       String
-  planId       String
-  requestedBy  String
-  method       String // BANK_TRANSFER | D17 | FLOUCI | CASH | OTHER
-  contactPhone String
-  note         String?             @db.Text
-  billingPeriod BillingPeriod      @default(MONTHLY)
+  id               String              @id @default(cuid())
+  clubId           String
+  planId           String
+  requestedBy      String
+  method           String // BANK_TRANSFER | D17 | FLOUCI | CASH | OTHER
+  contactPhone     String
+  note             String?             @db.Text
+  billingPeriod    BillingPeriod       @default(MONTHLY)
   // Price snapshot for the requested period, taken when the request is created.
-  amount       Float
-  currency     String              @default("USD")
-  status       ManualPaymentStatus @default(PENDING)
-  reviewedBy   String?
-  reviewNote   String?
-  reviewedAt   DateTime?
+  amount           Float
+  currency         String              @default("USD")
+  status           ManualPaymentStatus @default(PENDING)
+  reviewedBy       String?
+  reviewNote       String?
+  reviewedAt       DateTime?
   // Step 2 (activation): who verified the payment / agreed terms, when, and the reference
   // (transfer number, receipt, contract reference...). Required to activate.
   paymentReference String?
-  verifiedBy   String?
-  verifiedAt   DateTime?
-  createdAt    DateTime            @default(now())
-  updatedAt    DateTime            @updatedAt
+  verifiedBy       String?
+  verifiedAt       DateTime?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
 
   club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
 
