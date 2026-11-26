@@ -116,15 +116,17 @@ Page availability, branding, theme, 3D hero model, text, and images are supplied
 
 The nine selectable website templates are:
 
-- **Modern Fitness** — industrial forge hero, steel navigation rail, bold condensed type, plate-style offers.
-- **Premium Glass** — bento hero, translucent glass rail, soft gradients, tile-based offers.
-- **Energetic Red** — arena/scoreboard hero, high-impact ticker navigation, diagonal accents, scoreboard offers.
-- **Clean Minimal** — editorial hero, fine-line rail, spacious typography, typographic offer table.
-- **Sporty Dark Blue** — sports-dashboard hero, dark technical rail, performance styling, HUD offer cards.
-- **Nature & Wellness** — organic studio hero, floating navigation, calm shapes, soft offer cards.
-- **Neon Purple** — illuminated grid/HUD hero and rail, futuristic typography, console-style offer list.
-- **Classic Elegant** — framed salon hero, serif typography, double-rule navigation, engraved offer rows.
-- **Bold Black & Yellow** — street-texture hero, tape-inspired rail, high-contrast cards and sticker-style offers.
+- **Musculation** (`modern-fitness`) — industrial forge hero, steel navigation rail, bold condensed type, plate-style offers; emerald dashboard with a steel rail.
+- **Fitness Moderne** (`premium-glass`, the default) — bento hero, translucent glass rail, soft gradients, tile-based offers; vivid-blue frosted-glass dashboard.
+- **CrossFit** (`energetic-red`) — arena/scoreboard hero, ticker navigation, diagonal accents; slanted-slab dashboard navigation and clipped stat tiles.
+- **Minimal Elite** (`clean-minimal`) — editorial hero, fine-line rail, spacious typography, typographic offer table; black & white hairline dashboard.
+- **Boxing & MMA** (`boxing-mma`) — spotlit ring hero with ropes, cinematic crimson navigation, fight-card offers; ring-rope header and crimson rail in the dashboard. Replaces the former *Sporty Dark Blue* (its id and the legacy `boxing` id resolve here).
+- **Yoga & Bien-être** (`nature-wellness`) — organic arch hero, floating navigation, calm shapes, soft offer cards; olive/cream dashboard with pill navigation.
+- **Neon Performance** (`neon-purple`) — illuminated grid/HUD hero and rail, futuristic typography, console-style offers; glowing violet grid dashboard.
+- **Luxury Club** (`classic-elegant`) — framed salon hero, serif typography, double-rule navigation, engraved offers; gold-hairline serif dashboard.
+- **Urban Street** (`bold-black-yellow`) — street-texture hero, tape-inspired rail, sticker-style offers; thick-border, hard-shadow yellow dashboard.
+
+**Public site + owner dashboard share one identity.** `/admin` carries `data-admin-theme="<theme id>"` (from the same resolved theme as the public site) and `app/admin/admin-themes.css` re-skins the real admin — palette (light and dark mode), display typography, sidebar rail, navigation, cards, stat tiles, buttons, header — without touching data, routes, permissions or modules. The public footer (`.theme-footer`, `app/themes-identity.css`) follows the same theme. The member/coach area under `/dashboard` is not themed yet.
 
 Each has its own layout, navigation styling and behavior, desktop sidebar, section/card treatments, heading typography, pricing presentation, entrance motion, and responsive mobile navigation. Existing saved theme IDs resolve through aliases to the closest current design; aliases are not offered as extra choices. Theme switching does not overwrite the separately selected 3D hero model.
 
@@ -822,6 +824,24 @@ Google sign-in is feature-flagged and disabled by default.
 
 The owner-only `POST /api/admin/image-studio/generate` route calls the OpenAI Images API from the server. `OPENAI_API_KEY` is never sent to the browser. The route validates prompt length, applies a per-owner/per-club rate limit, and returns a temporary image preview; the owner then saves it through the normal tenant-scoped upload route and chooses its page slot in the Image Studio. Without the key configured, image generation returns a clear service-unavailable response; local uploads remain available.
 
+**Configure it**
+
+1. Create an API key at <https://platform.openai.com/api-keys> and add billing credit. GPT Image models may require *Organization verification* (OpenAI developer console → Settings → Organization → General).
+2. Put the key in the server environment only: `OPENAI_API_KEY=sk-...` in `.env.local` for local development, and in Vercel → Project → Settings → Environment Variables (Production + Preview), then redeploy. Never prefix it with `NEXT_PUBLIC_`.
+3. Optional: `OPENAI_IMAGE_MODEL` overrides the model (default `gpt-image-2.5-flare`; `gpt-image-2.5-sunburst` and `gpt-image-1` also work through the same endpoint).
+4. Open `/admin/image-studio` as the club OWNER → choose the slot → describe the image → *Générer* → adjust crop/position → *Enregistrer*. Limit: 6 generations per hour per owner and club.
+
+### Theme example images
+
+Each of the nine themes ships vector example artwork (`public/themes/<theme-id>.svg`) that fills the home hero until the owner sets their own *Photo — bannière d'accueil* in the Image Studio. To use photo-style examples instead, run once with your key and commit the files:
+
+```bash
+OPENAI_API_KEY=sk-... npm run themes:photos            # creates public/themes/<theme-id>.jpg for all nine themes
+OPENAI_API_KEY=sk-... npm run themes:photos -- --force neon-purple   # regenerate one
+```
+
+The app tries `<theme-id>.jpg` first and falls back to the `.svg`. The owner's own hero photo always wins, with its saved crop/position, and the 3D model selector stays independent of it.
+
 ---
 
 ## Local setup
@@ -945,6 +965,7 @@ Use `.env.example` as the full template.
 | `CLOUDINARY_API_KEY` | Cloudinary API key |
 | `CLOUDINARY_API_SECRET` | Cloudinary API secret |
 | `OPENAI_API_KEY` | Server-only API key for optional Image Studio generation |
+| `OPENAI_IMAGE_MODEL` | Optional image model override (default `gpt-image-2.5-flare`) |
 
 ### Stripe
 

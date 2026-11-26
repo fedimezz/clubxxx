@@ -20,7 +20,7 @@ const REQUESTED_THEME_IDS = [
   "premium-glass",
   "energetic-red",
   "clean-minimal",
-  "sporty-dark-blue",
+  "boxing-mma",
   "nature-wellness",
   "neon-purple",
   "classic-elegant",
@@ -62,8 +62,15 @@ describe("website themes", () => {
     expect(resolveThemeId(null)).toBe(DEFAULT_THEME_ID);
     expect(resolveThemeId("<script>")).toBe(DEFAULT_THEME_ID);
     expect(isSelectableThemeId("not-a-theme")).toBe(false);
-    expect(getTheme("luxury").name).toBe("Classic Elegant");
-    expect(getTheme("neon").name).toBe("Neon Purple");
+    expect(getTheme("luxury").name).toBe("Luxury Club");
+    expect(getTheme("neon").name).toBe("Neon Performance");
+    // The nine identities follow the reference board (public site + owner dashboard).
+    expect(THEME_PRESETS.map((t) => t.name)).toEqual([
+      "Musculation", "Fitness Moderne", "CrossFit", "Minimal Elite", "Boxing & MMA",
+      "Yoga & Bien-être", "Neon Performance", "Luxury Club", "Urban Street",
+    ]);
+    expect(resolveThemeId("sporty-dark-blue")).toBe("boxing-mma");
+    expect(resolveThemeId("boxing")).toBe("boxing-mma");
   });
 
   it("keeps the built-in 3D model catalogue intact and independent of theme IDs", () => {
@@ -77,7 +84,7 @@ describe("website themes", () => {
   });
 
   it("uses the chosen 3D model or the selected theme's default", () => {
-    expect(resolveHeroModel("sporty-dark-blue", "kettlebell")).toBe("kettlebell");
+    expect(resolveHeroModel("boxing-mma", "kettlebell")).toBe("kettlebell");
     expect(resolveHeroModel("energetic-red", null)).toBe("stopwatch");
     expect(resolveHeroModel("energetic-red", "not-a-model")).toBe("stopwatch");
   });

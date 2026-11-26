@@ -9,7 +9,7 @@ describe("themes and standard 3D models are included in every plan", () => {
 
   it("offers exactly the nine current designs and keeps previous IDs as aliases", () => {
     expect(SELECTABLE_THEME_PRESETS.map((theme) => theme.id)).toEqual([
-      "modern-fitness", "premium-glass", "energetic-red", "clean-minimal", "sporty-dark-blue",
+      "modern-fitness", "premium-glass", "energetic-red", "clean-minimal", "boxing-mma",
       "nature-wellness", "neon-purple", "classic-elegant", "bold-black-yellow",
     ]);
     expect(SELECTABLE_THEME_PRESETS).toHaveLength(9);

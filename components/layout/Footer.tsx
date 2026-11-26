@@ -29,9 +29,9 @@ export default function Footer() {
   const hasContact = Boolean(address || phone || email);
 
   return (
-    <footer className="relative bg-[#05080f] text-slate-200 border-t border-slate-800/80 transition-colors duration-500 overflow-hidden">
+    <footer className="theme-footer relative bg-[#05080f] text-slate-200 border-t border-slate-800/80 transition-colors duration-500 overflow-hidden">
       {/* Subtle top glow line */}
-      <div className="h-0.5 w-full bg-gradient-to-r from-transparent via-emerald-500/50 to-transparent" />
+      <div className="h-0.5 w-full bg-gradient-to-r from-transparent via-[color-mix(in_srgb,var(--brand,#10b981)_55%,transparent)] to-transparent" />
 
       <div className="container mx-auto px-4 md:px-6 py-20 relative z-10 max-w-6xl">
         <div className="grid gap-12 md:grid-cols-4">
@@ -41,7 +41,7 @@ export default function Footer() {
             <Link href="/" className="flex items-center space-x-3 group">
               <ClubLogo logoUrl={logoUrl} clubName={name} size="md" />
               <span className="text-xl font-black tracking-tight text-white flex items-center gap-1.5">
-                {name} <Sparkles className="h-3.5 w-3.5 text-emerald-400" />
+                {name} <Sparkles className="h-3.5 w-3.5 text-[var(--brand-on-dark,#34d399)]" />
               </span>
             </Link>
             {description && (
@@ -51,24 +51,24 @@ export default function Footer() {
 
           {/* Nav Col */}
           <div>
-            <h4 className="text-xs font-extrabold uppercase tracking-widest text-emerald-400 mb-5">
+            <h4 className="text-xs font-extrabold uppercase tracking-widest text-[var(--brand-on-dark,#34d399)] mb-5">
               Navigation
             </h4>
             <ul className="space-y-2.5 text-xs font-semibold text-slate-400">
               <li>
-                <Link href="/" className="hover:text-emerald-400 transition-colors">Accueil</Link>
+                <Link href="/" className="hover:text-[var(--brand-on-dark,#34d399)] transition-colors">Accueil</Link>
               </li>
               <li>
-                <Link href="/coaching" className="hover:text-emerald-400 transition-colors">Coaching Élite</Link>
+                <Link href="/coaching" className="hover:text-[var(--brand-on-dark,#34d399)] transition-colors">Coaching Élite</Link>
               </li>
               <li>
-                <Link href="/offres" className="hover:text-emerald-400 transition-colors">Formules & Tarifs</Link>
+                <Link href="/offres" className="hover:text-[var(--brand-on-dark,#34d399)] transition-colors">Formules & Tarifs</Link>
               </li>
               <li>
-                <Link href="/actualites" className="hover:text-emerald-400 transition-colors">Actualités du Club</Link>
+                <Link href="/actualites" className="hover:text-[var(--brand-on-dark,#34d399)] transition-colors">Actualités du Club</Link>
               </li>
               <li>
-                <Link href="/download" className="hover:text-emerald-400 transition-colors">Télécharger l&apos;application</Link>
+                <Link href="/download" className="hover:text-[var(--brand-on-dark,#34d399)] transition-colors">Télécharger l&apos;application</Link>
               </li>
             </ul>
           </div>
@@ -76,26 +76,26 @@ export default function Footer() {
           {/* Contact Col — hidden entirely until the club has configured at least one contact detail */}
           {hasContact && (
             <div>
-              <h4 className="text-xs font-extrabold uppercase tracking-widest text-emerald-400 mb-5">
+              <h4 className="text-xs font-extrabold uppercase tracking-widest text-[var(--brand-on-dark,#34d399)] mb-5">
                 Contact & Accès
               </h4>
               <ul className="space-y-3 text-xs font-medium text-slate-400">
                 {address && (
                   <li className="flex items-center gap-2.5">
-                    <MapPin className="h-4 w-4 text-emerald-400 flex-shrink-0" />
+                    <MapPin className="h-4 w-4 text-[var(--brand-on-dark,#34d399)] flex-shrink-0" />
                     <span>{address}</span>
                   </li>
                 )}
                 {phone && (
                   <li className="flex items-center gap-2.5">
-                    <Phone className="h-4 w-4 text-emerald-400 flex-shrink-0" />
-                    <a href={`tel:${phone}`} className="hover:text-emerald-400 transition-colors">{phone}</a>
+                    <Phone className="h-4 w-4 text-[var(--brand-on-dark,#34d399)] flex-shrink-0" />
+                    <a href={`tel:${phone}`} className="hover:text-[var(--brand-on-dark,#34d399)] transition-colors">{phone}</a>
                   </li>
                 )}
                 {email && (
                   <li className="flex items-center gap-2.5">
-                    <Mail className="h-4 w-4 text-emerald-400 flex-shrink-0" />
-                    <a href={`mailto:${email}`} className="hover:text-emerald-400 transition-colors">{email}</a>
+                    <Mail className="h-4 w-4 text-[var(--brand-on-dark,#34d399)] flex-shrink-0" />
+                    <a href={`mailto:${email}`} className="hover:text-[var(--brand-on-dark,#34d399)] transition-colors">{email}</a>
                   </li>
                 )}
               </ul>
@@ -105,7 +105,7 @@ export default function Footer() {
           {/* Socials Col — hidden entirely until at least one link is configured */}
           {socials.length > 0 && (
             <div>
-              <h4 className="text-xs font-extrabold uppercase tracking-widest text-emerald-400 mb-5">
+              <h4 className="text-xs font-extrabold uppercase tracking-widest text-[var(--brand-on-dark,#34d399)] mb-5">
                 Réseaux Officiels
               </h4>
               <p className="text-xs text-slate-400 font-medium mb-4">
@@ -119,7 +119,7 @@ export default function Footer() {
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label={label}
-                    className="h-10 w-10 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-300 hover:text-emerald-400 hover:border-emerald-500/40 hover:bg-emerald-500/10 transition duration-300"
+                    className="h-10 w-10 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-300 hover:text-[var(--brand-on-dark,#34d399)] hover:border-[var(--brand,#10b981)] hover:bg-[color-mix(in_srgb,var(--brand,#10b981)_14%,transparent)] transition duration-300"
                   >
                     <Icon className="h-4 w-4" />
                   </a>

@@ -94,7 +94,7 @@ describe("GET /api/settings/public — what the club's site renders", () => {
     const res = await GET(new NextRequest("https://club-a.example.test/api/settings/public", { headers: { host: "club-a.example.test" } }));
     const json = await res.json();
     expect(json.themeId).toBe("premium-glass"); // legacy "classic"
-    expect(json.heroModel).toBe("diamond"); // Premium Glass default
+    expect(json.heroModel).toBe("diamond"); // Fitness Moderne (premium-glass) default
     expect(json.primaryColor).toBe("#112233");
   });
 });

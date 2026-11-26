@@ -11,6 +11,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useClubSettings } from "@/context/ClubSettingsContext";
 import { getTheme } from "@/lib/website-themes";
 import { postLoginPath } from "@/lib/post-login-path";
+import HeroPhoto from "@/components/themes/HeroPhoto";
 
 // `three` is code-split: it is only fetched when a hero actually mounts.
 const HeroScene = dynamic(() => import("@/components/themes/hero3d/HeroScene"), { ssr: false, loading: () => null });
@@ -97,6 +98,7 @@ export function ForgeHero() {
   const words = Array.from({ length: 8 }, () => clubName);
   return (
     <section className="hero-forge relative overflow-hidden text-white">
+      <HeroPhoto overlay="bg-gradient-to-r from-black/90 via-black/60 to-black/25" opacity={0.9} />
       <div className="mx-auto grid min-h-[100svh] max-w-7xl items-center gap-6 px-6 pb-32 pt-28 md:grid-cols-2">
         <div className="relative z-10">
           <div className="forge-plate-line mb-6 w-28 t-reveal" aria-hidden />
@@ -144,6 +146,7 @@ export function ArenaHero() {
   const { title, subtitle } = useHeroData();
   return (
     <section className="hero-arena relative overflow-hidden text-white">
+      <HeroPhoto overlay="bg-gradient-to-br from-black/90 via-black/55 to-[#7f1d1d]/50" opacity={0.85} />
       <div className="relative mx-auto flex min-h-[100svh] max-w-7xl flex-col justify-center px-6 py-28">
         <div className="relative z-10 max-w-3xl">
           <div className="t-reveal flex items-center gap-4">
@@ -167,6 +170,7 @@ export function RingHero() {
   const { title, subtitle } = useHeroData();
   return (
     <section className="hero-ring relative overflow-hidden text-white">
+      <HeroPhoto overlay="bg-black/65" opacity={0.7} />
       <div className="ring-spot pointer-events-none absolute inset-x-0 top-0 h-full" aria-hidden />
       <div className="relative mx-auto flex min-h-[100svh] max-w-5xl flex-col items-center justify-center px-6 pb-24 pt-28 text-center">
         <p className="t-reveal text-lg tracking-[0.6em] text-[var(--brand-text,var(--brand))]" aria-hidden>★ ★ ★</p>
@@ -203,7 +207,8 @@ export function StudioHero() {
           {subtitle && <p className="t-reveal t-reveal-3 mx-auto mt-6 max-w-md text-lg text-[var(--text-secondary)] md:mx-0">{subtitle}</p>}
           <div className="flex justify-center md:justify-start"><CtaRow /></div>
         </div>
-        <div className="studio-arch relative mx-auto aspect-[3/4] w-full max-w-sm md:max-w-md">
+        <div className="studio-arch relative mx-auto aspect-[3/4] w-full max-w-sm overflow-hidden md:max-w-md">
+          <HeroPhoto variant="fill" opacity={0.95} />
           <Scene energy={0.6} interactive={false} />
         </div>
       </div>
@@ -236,6 +241,7 @@ export function BentoHero() {
           <CtaRow />
         </div>
         <div className="bento-grad theme-card t-reveal t-reveal-2 relative min-h-[320px] overflow-hidden md:col-span-5 md:row-span-3">
+          <HeroPhoto variant="fill" opacity={0.85} />
           <Scene energy={1} />
         </div>
         {pages.offres && <div className="t-reveal t-reveal-2 md:col-span-7 md:col-start-1"><BentoTile href="/offres" title="Nos offres" hint="Abonnements et promotions" icon="✦" /></div>}

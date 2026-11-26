@@ -4,16 +4,20 @@ import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { useClubSettings } from "@/context/ClubSettingsContext";
 import AdminSidebar from "@/components/admin/AdminSidebar";
 import AdminHeader from "@/components/admin/AdminHeader";
 import AdminSectionTabs from "@/components/admin/AdminSectionTabs";
 import { ToastProvider } from "@/components/ui/Toast";
 import "./admin-ui.css";
+import "./admin-themes.css";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
     const router = useRouter();
     const pathname = usePathname();
     const { isLoggedIn, userRole, isLoading } = useAuth();
+    // The dashboard wears the same theme as the club's public website (app/admin/admin-themes.css).
+    const { themeId } = useClubSettings();
     const [mobileOpen, setMobileOpen] = useState(false);
     // Collapsed (icon rail) sidebar on desktop; remembered per browser (storage can be unavailable).
     const [collapsed, setCollapsed] = useState(false);
@@ -171,7 +175,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
     return (
         <ToastProvider>
-            <div className="clubx-admin fixed inset-0 z-50 flex bg-primary overflow-hidden">
+            <div className="clubx-admin fixed inset-0 z-50 flex bg-primary overflow-hidden" data-admin-theme={themeId}>
                 <AdminSidebar
                     collapsed={collapsed}
                     role={roleUpper as "ADMIN" | "OWNER"}

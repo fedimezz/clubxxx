@@ -1,6 +1,6 @@
 /* ==========================================================================
    WEBSITE THEMES — Modern Fitness · Premium Glass · Energetic Red · Clean Minimal ·
-   Sporty Dark Blue · Nature & Wellness · Neon Purple · Classic Elegant · Bold Black & Yellow
+   Boxing & MMA · Yoga & Bien-être · Neon Purple · Classic Elegant · Bold Black & Yellow
    Selected per club (GymSettings.themeId) and applied as data-site-theme on
    <html> (app/layout.tsx). Each theme sets typography, shape, section
    styling and motion; the page LAYOUTS live in components/themes/*.
@@ -184,20 +184,7 @@
 }
 .arena-timer { font-variant-numeric: tabular-nums; font-family: var(--t-heading-font); }
 
-/* ── 3. BOXING — spotlit ring, ropes, poster lettering ───────────────────── */
-[data-site-theme="boxing"] {
-  --t-heading-font: "Bebas Neue", Impact, sans-serif;
-  --t-body-font: "Inter", system-ui, sans-serif;
-  --t-heading-transform: uppercase;
-  --t-heading-tracking: 0.06em;
-  --t-heading-weight: 400;
-  --t-radius: 14px;
-  --t-btn-radius: 4px;
-  --t-btn-tracking: 0.16em;
-  --t-card-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.08), 0 20px 40px -18px rgb(0 0 0 / 0.9);
-  --t-card-lift: -5px;
-  --t-reveal: t-fade;
-}
+/* ── 3. BOXING — spotlit ring, ropes, poster lettering (tokens: see the Boxing & MMA block below) ── */
 .hero-ring {
   background:
     radial-gradient(ellipse 60% 70% at 50% 8%, rgb(255 244 214 / 0.22), transparent 65%),
@@ -857,18 +844,18 @@ html.dark[data-site-theme="clean-minimal"] {
   --t-section-bg: #111615;
   --t-section-alt: #171e1c;
 }
-[data-site-theme="sporty-dark-blue"] {
+[data-site-theme="boxing-mma"] {
   --t-heading-font: "Barlow Condensed", "Arial Narrow", sans-serif;
-  --t-body-font: "Barlow", "Inter", sans-serif;
+  --t-body-font: "Barlow", "Inter", system-ui, sans-serif;
   --t-heading-transform: uppercase;
-  --t-heading-tracking: 0.04em;
+  --t-heading-tracking: 0.06em;
   --t-heading-weight: 800;
-  --t-radius: 6px;
+  --t-radius: 14px;
   --t-btn-radius: 4px;
+  --t-btn-tracking: 0.16em;
+  --t-card-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.08), 0 20px 40px -18px rgb(0 0 0 / 0.9);
+  --t-card-lift: -5px;
   --t-reveal: t-data;
-  --t-section-bg: #071426;
-  --t-section-alt: #0b1c31;
-  --t-card-shadow: 0 0 0 1px rgb(56 189 248 / 0.18), 0 18px 44px -24px #020617;
 }
 [data-site-theme="nature-wellness"] {
   --t-heading-font: "Nunito Sans", "Inter", sans-serif;

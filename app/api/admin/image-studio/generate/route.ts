@@ -5,6 +5,8 @@ import { checkRateLimit } from "@/lib/rate-limit";
 
 const MAX_PROMPT_LENGTH = 1000;
 const GENERATIONS_PER_HOUR = 6;
+// Override with OPENAI_IMAGE_MODEL (e.g. gpt-image-2.5-sunburst, gpt-image-1) without a code change.
+const DEFAULT_IMAGE_MODEL = "gpt-image-2.5-flare";
 
 export async function POST(request: NextRequest) {
   const auth = await requireOwner(request);
@@ -43,7 +45,7 @@ export async function POST(request: NextRequest) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gpt-image-2.5-flare",
+        model: process.env.OPENAI_IMAGE_MODEL?.trim() || DEFAULT_IMAGE_MODEL,
         prompt: `Create a high-quality, realistic image for a sports club website. Do not include text, logos, watermarks, or brand names. ${prompt}`,
         size: "1536x1024",
         quality: "medium",

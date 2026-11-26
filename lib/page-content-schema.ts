@@ -35,8 +35,9 @@ export const PAGE_CONTENT_SCHEMA: PageContentDef[] = [
         type: "textarea",
         defaultValue: "",
       },
-      // Photo areas that sit BESIDE/BELOW the hero. The hero's 3D dumbbell is a
-      // fixed design element and is intentionally not configurable.
+      // The hero banner photo sits BEHIND/BESIDE the hero (each theme frames it its own way).
+      // The 3D model is chosen separately (hero model selector) and is never replaced by it.
+      { key: "heroImage", label: "Photo — bannière d'accueil (héros)", type: "image", defaultValue: "" },
       { key: "introImage", label: "Photo — présentation du club", type: "image", defaultValue: "" },
       { key: "homeGallery", label: "Photos — accueil", type: "gallery", defaultValue: "[]" },
     ],

@@ -42,7 +42,8 @@ describe("/api/admin/page-content image metadata", () => {
         introImage: { x: 25.4, y: 80, zoom: 1.55 },
         "homeGallery:0": { x: 65, y: 35, zoom: 1.2 },
         "homeGallery:12": { x: 10, y: 10, zoom: 1 },
-        heroImage: { x: 50, y: 50, zoom: 1 },
+        heroImage: { x: 30, y: 60, zoom: 1.4 },
+        bogusImage: { x: 50, y: 50, zoom: 1 },
       }),
     };
     const response = await PUT(new NextRequest("https://club-a.example.test/api/admin/page-content", {
@@ -58,6 +59,7 @@ describe("/api/admin/page-content image metadata", () => {
     expect(call.create).not.toHaveProperty("clubId", "club-b");
     expect(JSON.parse(call.create.content.__imagePositions)).toEqual({
       introImage: { x: 25, y: 80, zoom: 1.55 },
+      heroImage: { x: 30, y: 60, zoom: 1.4 }, // the home hero photo slot is a real image field
       "homeGallery:0": { x: 65, y: 35, zoom: 1.2 },
     });
   });

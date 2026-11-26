@@ -5,12 +5,14 @@
 // original five they are real layouts — not recolors — sharing only the data
 // hook, the call-to-action row and the 3D scene from ./Heroes.
 import { CtaRow, Scene, useHeroData } from "@/components/themes/Heroes";
+import HeroPhoto from "@/components/themes/HeroPhoto";
 
 // ── 6. SALON (Luxury Fitness Club) ───────────────────────────────────────────
 export function SalonHero() {
   const { title, subtitle, clubName } = useHeroData();
   return (
     <section className="hero-salon relative overflow-hidden text-[#f6ecd2]">
+      <HeroPhoto overlay="bg-[#120e0a]/75" opacity={0.65} />
       <div className="salon-frame" aria-hidden />
       <div className="relative mx-auto flex min-h-[100svh] max-w-5xl flex-col items-center justify-center px-8 pb-24 pt-32 text-center">
         <p className="t-reveal text-xs uppercase tracking-[0.5em] text-[var(--brand-text,var(--brand))]">{clubName}</p>
@@ -31,6 +33,7 @@ export function GridHero() {
   const { title, subtitle } = useHeroData();
   return (
     <section className="hero-grid relative overflow-hidden text-white">
+      <HeroPhoto overlay="bg-gradient-to-b from-[#10091f]/80 via-[#10091f]/60 to-[#10091f]/90" opacity={0.7} />
       <span className="neon-glow -left-24 top-10 h-72 w-72" aria-hidden />
       <div className="neon-floor" aria-hidden />
       <div className="relative mx-auto grid min-h-[100svh] max-w-7xl items-center gap-6 px-6 pb-28 pt-28 md:grid-cols-[1.05fr_0.95fr]">
@@ -53,6 +56,7 @@ export function PlatformHero() {
   const { title, subtitle } = useHeroData();
   return (
     <section className="hero-platform relative overflow-hidden text-white">
+      <HeroPhoto overlay="bg-gradient-to-r from-[#071426]/95 via-[#071426]/65 to-[#071426]/30" opacity={0.85} />
       <span className="platform-ghost -right-4 top-16 hidden text-[18rem] md:block" aria-hidden>500</span>
       <div className="relative mx-auto grid min-h-[100svh] max-w-7xl items-center gap-6 px-6 pb-32 pt-28 md:grid-cols-2">
         <div className="relative z-10">
@@ -78,6 +82,7 @@ export function StreetHero() {
   const { title, subtitle, clubName } = useHeroData();
   return (
     <section className="hero-street relative overflow-hidden text-white">
+      <HeroPhoto overlay="bg-gradient-to-r from-black/90 via-black/60 to-black/30" opacity={0.9} />
       <span className="street-spray -left-16 top-24 h-64 w-64" aria-hidden />
       <span className="street-spray -right-10 bottom-24 h-72 w-72" aria-hidden />
       <div className="relative mx-auto flex min-h-[100svh] max-w-7xl flex-col justify-center px-6 pb-28 pt-28">
@@ -109,7 +114,8 @@ export function EditorialHero() {
           {subtitle && <p className="t-reveal t-reveal-3 mt-6 max-w-md text-lg opacity-75">{subtitle}</p>}
           <CtaRow />
         </div>
-        <div className="relative mx-auto aspect-[4/5] w-full max-w-sm border border-current/15 md:max-w-md">
+        <div className="relative mx-auto aspect-[4/5] w-full max-w-sm overflow-hidden border border-current/15 md:max-w-md">
+          <HeroPhoto variant="fill" opacity={0.95} />
           <Scene energy={0.55} interactive={false} />
         </div>
       </div>
@@ -124,6 +130,7 @@ export function PrivateHero() {
   const { title, subtitle, clubName } = useHeroData();
   return (
     <section className="hero-private relative overflow-hidden text-[#f3e8d0]">
+      <HeroPhoto overlay="bg-[#120e0a]/75" opacity={0.65} />
       <div className="private-rail-v" aria-hidden />
       <span className="private-monogram" aria-hidden>{clubName.trim().charAt(0).toUpperCase() || "C"}</span>
       <div className="relative mx-auto grid min-h-[100svh] max-w-7xl items-center gap-8 px-6 pb-24 pt-32 pl-14 md:grid-cols-[1.1fr_0.9fr] md:pl-24">

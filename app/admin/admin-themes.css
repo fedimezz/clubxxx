@@ -1,0 +1,324 @@
+/* ═══ Owner dashboard — nine theme identities ═════════════════════════════════════════════════════
+   The /admin shell (app/admin/layout.tsx) carries `data-admin-theme="<theme id>"`, taken from the SAME
+   resolved theme as the public website (ClubSettingsContext.themeId), so a club's site and dashboard
+   always match. This file only re-skins the existing admin markup — tokens, sidebar, navigation,
+   cards, stat tiles, buttons, header, typography — it never changes data, routes, permissions or
+   behaviour. Every real module (members, planning, payments, reports …) keeps working unchanged.
+
+   Structure
+     1. shared mechanics (read the --adm-* variables set per theme below)
+     2. one block per theme: palette (light + dark), shape language, sidebar, signature details
+     3. small screens + reduced motion
+   Themes: modern-fitness (Musculation) · premium-glass (Fitness Moderne) · energetic-red (CrossFit)
+           clean-minimal (Minimal Elite) · boxing-mma (Boxing & MMA) · nature-wellness (Yoga & Bien-être)
+           neon-purple (Neon Performance) · classic-elegant (Luxury Club) · bold-black-yellow (Urban Street)
+   ================================================================================================ */
+
+/* ── 1. SHARED MECHANICS ─────────────────────────────────────────────────────────────────────── */
+.clubx-admin[data-admin-theme] {
+    font-family: var(--t-body-font, inherit);
+    --adm-heading-font: var(--t-heading-font, inherit);
+    --adm-heading-transform: var(--t-heading-transform, none);
+    --adm-heading-tracking: var(--t-heading-tracking, normal);
+    --adm-radius: 1rem;
+    --adm-nav-radius: .8rem;
+    --adm-btn-radius: 9999px;
+    --adm-nav-font: var(--t-body-font, inherit);
+    --adm-nav-transform: none;
+    --adm-nav-tracking: normal;
+    --adm-side-bg: #0b1220;
+    --adm-side-edge: 1px solid rgb(255 255 255 / 0.08);
+    --adm-nav-active-bg: linear-gradient(90deg, rgb(var(--glow) / 0.28), rgb(var(--glow) / 0.10));
+    --adm-nav-active-color: #fff;
+    --adm-nav-active-shadow: inset 0 0 0 1px rgb(var(--glow) / 0.45), 0 8px 24px -14px rgb(var(--glow) / 0.8);
+    --adm-card-border: 1px solid var(--border-light);
+    --adm-card-shadow: none;
+    --adm-header-edge: 1px solid var(--border-light);
+    --adm-main-bg: none;
+}
+
+/* Headings in the theme's display face */
+.clubx-admin[data-admin-theme] :is(h1, h2) {
+    font-family: var(--adm-heading-font);
+    text-transform: var(--adm-heading-transform);
+    letter-spacing: var(--adm-heading-tracking);
+}
+
+/* Cards, tiles, stat blocks and the welcome banner share one shape language */
+.clubx-admin[data-admin-theme] :is(.dash-card, .dash-stat, .dash-hero, .dash-tile, .theme-panel) {
+    border-radius: var(--adm-radius);
+}
+.clubx-admin[data-admin-theme] :is(.dash-card, .theme-panel) {
+    border: var(--adm-card-border);
+    box-shadow: var(--adm-card-shadow);
+}
+/* Positive/neutral stat tints follow the theme accent; amber (warning) and rose (alert) stay semantic */
+.clubx-admin[data-admin-theme] :is(.stat-tint-green, .stat-tint-purple, .stat-tint-blue, .stat-tint-teal) { --tint: var(--glow); }
+
+/* Buttons */
+.clubx-admin[data-admin-theme] :is(.admin-cta, .admin-ghost, .dash-chip) { border-radius: var(--adm-btn-radius); }
+
+/* Sidebar: always a dark rail (light and dark mode), tinted by the theme */
+.clubx-admin[data-admin-theme] .admin-sidebar {
+    --text-primary: #f4f4f5;
+    --text-muted: #a1a1aa;
+    --bg-card: rgb(255 255 255 / 0.05);
+    --bg-muted: rgb(255 255 255 / 0.08);
+    --border-light: rgb(255 255 255 / 0.10);
+    --border-medium: rgb(255 255 255 / 0.20);
+    color: var(--text-primary);
+    background: var(--adm-side-bg);
+    border-right: var(--adm-side-edge);
+}
+.clubx-admin[data-admin-theme] .admin-nav-item {
+    border-radius: var(--adm-nav-radius);
+    font-family: var(--adm-nav-font);
+    text-transform: var(--adm-nav-transform);
+    letter-spacing: var(--adm-nav-tracking);
+}
+.clubx-admin[data-admin-theme] .admin-nav-item:hover { background: rgb(var(--glow) / 0.12); color: #fff; }
+.clubx-admin[data-admin-theme] .admin-nav-item[aria-current="page"],
+.clubx-admin[data-admin-theme] .admin-nav-item[data-active="true"] {
+    background: var(--adm-nav-active-bg);
+    color: var(--adm-nav-active-color);
+    box-shadow: var(--adm-nav-active-shadow);
+}
+.clubx-admin[data-admin-theme] .admin-nav-item[aria-current="page"] svg,
+.clubx-admin[data-admin-theme] .admin-nav-item[data-active="true"] svg { color: currentColor; }
+
+/* Header + page background */
+.clubx-admin[data-admin-theme] header.theme-nav { border-bottom: var(--adm-header-edge); }
+.clubx-admin[data-admin-theme] main { background: var(--adm-main-bg); }
+
+/* ── 2a. MUSCULATION — industrial steel, emerald ─────────────────────────────────────────────── */
+.clubx-admin[data-admin-theme="modern-fitness"] {
+    --glow: 34 197 94; --primary: #16a34a; --primary-dark: #15803d; --primary-light: #22c55e; --brand-contrast: #ffffff;
+    --bg-primary: #f3f6f3; --bg-secondary: #eaf0ea;
+    --adm-radius: 4px; --adm-nav-radius: 3px; --adm-btn-radius: 3px;
+    --adm-nav-font: "Oswald", "Arial Narrow", sans-serif; --adm-nav-transform: uppercase; --adm-nav-tracking: .08em;
+    --adm-side-bg: linear-gradient(180deg, #0b140e, #060a07); --adm-side-edge: 3px solid #22c55e;
+    --adm-nav-active-bg: #22c55e; --adm-nav-active-color: #04130a; --adm-nav-active-shadow: 4px 4px 0 #000;
+    --adm-card-border: 1px solid var(--border-light); --adm-header-edge: 3px solid #22c55e;
+}
+.dark .clubx-admin[data-admin-theme="modern-fitness"] {
+    --glow: 34 197 94; --primary: #22c55e; --primary-dark: #16a34a; --primary-light: #4ade80; --brand-contrast: #04130a;
+    --bg-primary: #070b08; --bg-secondary: #0b110d; --bg-card: #0f1712; --bg-muted: #16211a;
+    --border-light: rgb(34 197 94 / 0.16); --border-medium: rgb(34 197 94 / 0.30); --text-muted: #8fa597;
+}
+.clubx-admin[data-admin-theme="modern-fitness"] :is(.dash-card, .theme-panel) { border-left: 4px solid #22c55e; }
+.clubx-admin[data-admin-theme="modern-fitness"] .admin-cta { box-shadow: 3px 3px 0 #000; }
+.clubx-admin[data-admin-theme="modern-fitness"] main {
+    --adm-main-bg: repeating-linear-gradient(115deg, rgb(34 197 94 / 0.025) 0 2px, transparent 2px 11px);
+    background: var(--adm-main-bg);
+}
+
+/* ── 2b. FITNESS MODERNE — frosted glass, vivid blue ─────────────────────────────────────────── */
+.clubx-admin[data-admin-theme="premium-glass"] {
+    --glow: 59 130 246; --primary: #2563eb; --primary-dark: #1d4ed8; --primary-light: #3b82f6; --brand-contrast: #ffffff;
+    --bg-primary: #f1f6ff; --bg-secondary: #e8f0ff;
+    --adm-radius: 1.5rem; --adm-nav-radius: 1rem; --adm-btn-radius: 9999px;
+    --adm-nav-font: "Space Grotesk", var(--t-body-font, inherit);
+    --adm-side-bg:
+        radial-gradient(120% 40% at 0% 100%, rgb(56 189 248 / 0.22), transparent 65%),
+        linear-gradient(180deg, #0a1633, #07102a);
+    --adm-nav-active-bg: linear-gradient(135deg, #2563eb, #38bdf8); --adm-nav-active-color: #fff;
+    --adm-nav-active-shadow: 0 10px 26px -12px rgb(37 99 235 / 0.9);
+    --adm-card-shadow: 0 22px 50px -34px rgb(37 99 235 / 0.55);
+}
+.dark .clubx-admin[data-admin-theme="premium-glass"] {
+    --glow: 96 165 250; --primary: #3b82f6; --primary-dark: #2563eb; --primary-light: #60a5fa; --brand-contrast: #ffffff;
+    --bg-primary: #050b18; --bg-secondary: #08122a; --bg-card: rgb(15 30 62 / 0.62); --bg-muted: #11203f;
+    --border-light: rgb(147 197 253 / 0.16); --border-medium: rgb(147 197 253 / 0.28); --text-muted: #8fa6c8;
+    --adm-card-shadow: 0 24px 60px -36px rgb(37 99 235 / 0.8);
+}
+.clubx-admin[data-admin-theme="premium-glass"] :is(.dash-card, .theme-panel, .dash-stat) { backdrop-filter: blur(14px); }
+.clubx-admin[data-admin-theme="premium-glass"] main {
+    background:
+        radial-gradient(60% 40% at 90% 0%, rgb(56 189 248 / 0.14), transparent 70%),
+        radial-gradient(50% 40% at 0% 100%, rgb(37 99 235 / 0.10), transparent 70%);
+}
+
+/* ── 2c. CROSSFIT — slanted slabs, red alert ─────────────────────────────────────────────────── */
+.clubx-admin[data-admin-theme="energetic-red"] {
+    --glow: 239 68 68; --primary: #dc2626; --primary-dark: #b91c1c; --primary-light: #ef4444; --brand-contrast: #ffffff;
+    --bg-primary: #f8f3f3; --bg-secondary: #f1e8e8;
+    --adm-radius: 6px; --adm-nav-radius: 0; --adm-btn-radius: 0;
+    --adm-nav-font: "Bebas Neue", Impact, sans-serif; --adm-nav-transform: uppercase; --adm-nav-tracking: .08em;
+    --adm-side-bg: repeating-linear-gradient(-45deg, #130b0c 0 14px, #190d0e 14px 28px); --adm-side-edge: 0;
+    --adm-nav-active-bg: #ef4444; --adm-nav-active-color: #fff; --adm-nav-active-shadow: none;
+    --adm-card-border: 1px solid var(--border-light); --adm-header-edge: 0;
+}
+.dark .clubx-admin[data-admin-theme="energetic-red"] {
+    --glow: 239 68 68; --primary: #ef4444; --primary-dark: #dc2626; --primary-light: #f87171; --brand-contrast: #ffffff;
+    --bg-primary: #0b0708; --bg-secondary: #120a0b; --bg-card: #180d0f; --bg-muted: #231316;
+    --border-light: rgb(239 68 68 / 0.18); --border-medium: rgb(239 68 68 / 0.32); --text-muted: #b09296;
+}
+.clubx-admin[data-admin-theme="energetic-red"] header.theme-nav { box-shadow: 0 4px 0 var(--primary); }
+.clubx-admin[data-admin-theme="energetic-red"] .admin-nav-item { font-size: 1rem; font-style: italic; }
+.clubx-admin[data-admin-theme="energetic-red"] .admin-nav-item[aria-current="page"],
+.clubx-admin[data-admin-theme="energetic-red"] .admin-nav-item[data-active="true"] { clip-path: polygon(0 0, 100% 0, calc(100% - 12px) 100%, 0 100%); }
+.clubx-admin[data-admin-theme="energetic-red"] :is(.dash-stat, .dash-tile) { clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 18px 100%, 0 calc(100% - 18px)); }
+.clubx-admin[data-admin-theme="energetic-red"] :is(.dash-card, .theme-panel) { border-top: 4px solid var(--primary); }
+.clubx-admin[data-admin-theme="energetic-red"] :is(.admin-cta, .admin-ghost) { clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%); font-style: italic; text-transform: uppercase; letter-spacing: .06em; }
+
+/* ── 2d. MINIMAL ELITE — hairlines, black & white ────────────────────────────────────────────── */
+.clubx-admin[data-admin-theme="clean-minimal"] {
+    --glow: 24 24 27; --primary: #18181b; --primary-dark: #000000; --primary-light: #3f3f46; --brand-contrast: #ffffff;
+    --bg-primary: #ffffff; --bg-secondary: #fafafa; --bg-card: #ffffff; --bg-muted: #f4f4f5;
+    --border-light: #e4e4e7; --border-medium: #d4d4d8;
+    --adm-radius: 2px; --adm-nav-radius: 0; --adm-btn-radius: 2px;
+    --adm-nav-font: "Inter", system-ui, sans-serif; --adm-nav-tracking: .02em;
+    --adm-side-bg: #0a0a0a; --adm-side-edge: 0;
+    --adm-nav-active-bg: transparent; --adm-nav-active-color: #fff; --adm-nav-active-shadow: inset 2px 0 0 #fff;
+    --adm-card-border: 1px solid var(--border-light);
+}
+.dark .clubx-admin[data-admin-theme="clean-minimal"] {
+    --glow: 250 250 250; --primary: #fafafa; --primary-dark: #e4e4e7; --primary-light: #ffffff; --brand-contrast: #09090b;
+    --bg-primary: #09090b; --bg-secondary: #0f0f11; --bg-card: #131316; --bg-muted: #1c1c20;
+    --border-light: rgb(255 255 255 / 0.09); --border-medium: rgb(255 255 255 / 0.18); --text-muted: #a1a1aa;
+}
+.clubx-admin[data-admin-theme="clean-minimal"] .admin-sidebar { --glow: 255 255 255; }
+.clubx-admin[data-admin-theme="clean-minimal"] :is(.dash-hero, .dash-stat, .dash-card, .theme-panel) { box-shadow: none; background-image: none; }
+.clubx-admin[data-admin-theme="clean-minimal"] :is(.dash-stat, .dash-hero) { background: var(--bg-card); border: 1px solid var(--border-light); }
+.clubx-admin[data-admin-theme="clean-minimal"] .stat-tint-amber { --tint: 161 98 7; }
+.clubx-admin[data-admin-theme="clean-minimal"] .admin-cta { box-shadow: none; }
+.clubx-admin[data-admin-theme="clean-minimal"] :is(h1, h2) { font-weight: 500; }
+
+/* ── 2e. BOXING & MMA — ring ropes, spotlight, crimson ───────────────────────────────────────── */
+.clubx-admin[data-admin-theme="boxing-mma"] {
+    --glow: 212 31 45; --primary: #c81e2c; --primary-dark: #a3111e; --primary-light: #e23744; --brand-contrast: #ffffff;
+    --bg-primary: #f6f3f2; --bg-secondary: #eee9e7;
+    --adm-radius: 4px; --adm-nav-radius: 0; --adm-btn-radius: 3px;
+    --adm-nav-font: "Barlow Condensed", "Arial Narrow", sans-serif; --adm-nav-transform: uppercase; --adm-nav-tracking: .18em;
+    --adm-side-bg: linear-gradient(180deg, #0a0807, #1a0a0a); --adm-side-edge: 3px solid #d41f2d;
+    --adm-nav-active-bg: linear-gradient(90deg, rgb(212 31 45 / 0.35), transparent); --adm-nav-active-color: #fff;
+    --adm-nav-active-shadow: inset 3px 0 0 #d41f2d;
+    --adm-card-border: 1px solid var(--border-light);
+}
+.dark .clubx-admin[data-admin-theme="boxing-mma"] {
+    --glow: 226 55 68; --primary: #e23744; --primary-dark: #c81e2c; --primary-light: #f0606b; --brand-contrast: #ffffff;
+    --bg-primary: #080605; --bg-secondary: #0f0908; --bg-card: #160d0c; --bg-muted: #211210;
+    --border-light: rgb(255 255 255 / 0.10); --border-medium: rgb(255 255 255 / 0.20); --text-muted: #a8938f;
+}
+.clubx-admin[data-admin-theme="boxing-mma"] .admin-sidebar { box-shadow: 8px 0 30px -16px #d41f2d; }
+.clubx-admin[data-admin-theme="boxing-mma"] :is(.dash-card, .theme-panel) { border-top: 3px solid var(--primary); }
+.clubx-admin[data-admin-theme="boxing-mma"] header.theme-nav { position: relative; border-bottom: 0; box-shadow: 0 1px 0 rgb(255 255 255 / 0.06); }
+.clubx-admin[data-admin-theme="boxing-mma"] header.theme-nav::after {
+    content: ""; position: absolute; inset: auto 0 0 0; height: 3px; pointer-events: none;
+    background: linear-gradient(90deg, transparent, var(--primary) 12% 88%, transparent); box-shadow: 0 0 14px var(--primary);
+}
+.clubx-admin[data-admin-theme="boxing-mma"] main { background: radial-gradient(ellipse 70% 40% at 50% 0%, rgb(255 244 214 / 0.07), transparent 70%); }
+.clubx-admin[data-admin-theme="boxing-mma"] .admin-cta { box-shadow: 0 0 0 1px rgb(255 255 255 / 0.25) inset, 0 10px 30px -10px var(--primary); text-transform: uppercase; letter-spacing: .14em; }
+
+/* ── 2f. YOGA & BIEN-ÊTRE — soft arches, olive & cream ───────────────────────────────────────── */
+.clubx-admin[data-admin-theme="nature-wellness"] {
+    --glow: 111 143 78; --primary: #5f7f3f; --primary-dark: #4a6630; --primary-light: #6f8f4e; --brand-contrast: #ffffff;
+    --bg-primary: #f6f3e9; --bg-secondary: #efeadb; --bg-card: #fffdf7; --bg-muted: #ece7d6;
+    --border-light: rgb(95 127 63 / 0.18); --border-medium: rgb(95 127 63 / 0.30);
+    --adm-radius: 1.75rem; --adm-nav-radius: 9999px; --adm-btn-radius: 9999px;
+    --adm-side-bg: linear-gradient(180deg, #16241b, #0f1a14); --adm-side-edge: 0;
+    --adm-nav-active-bg: rgb(143 176 106 / 0.22); --adm-nav-active-color: #f4f1e6;
+    --adm-nav-active-shadow: inset 0 0 0 1px rgb(143 176 106 / 0.5);
+    --adm-card-shadow: 0 18px 44px -30px rgb(95 127 63 / 0.55);
+}
+.dark .clubx-admin[data-admin-theme="nature-wellness"] {
+    --glow: 143 176 106; --primary: #8fb06a; --primary-dark: #6f8f4e; --primary-light: #a9c58a; --brand-contrast: #0e1a10;
+    --bg-primary: #0d1410; --bg-secondary: #121b15; --bg-card: #17231b; --bg-muted: #1f2d23;
+    --border-light: rgb(169 197 138 / 0.14); --border-medium: rgb(169 197 138 / 0.26); --text-muted: #9bae9f;
+}
+.clubx-admin[data-admin-theme="nature-wellness"] :is(.dash-card, .theme-panel) { border-radius: 1.75rem 1.75rem 1rem 1rem; }
+.clubx-admin[data-admin-theme="nature-wellness"] :is(h1, h2) { font-weight: 500; }
+.clubx-admin[data-admin-theme="nature-wellness"] main {
+    background:
+        radial-gradient(circle at 12% 12%, rgb(111 143 78 / 0.12), transparent 40%),
+        radial-gradient(circle at 90% 85%, rgb(196 169 130 / 0.16), transparent 42%);
+}
+
+/* ── 2g. NEON PERFORMANCE — grid, glow, violet ───────────────────────────────────────────────── */
+.clubx-admin[data-admin-theme="neon-purple"] {
+    --glow: 168 85 247; --primary: #7c3aed; --primary-dark: #6d28d9; --primary-light: #a855f7; --brand-contrast: #ffffff;
+    --bg-primary: #f6f2ff; --bg-secondary: #eee7fb;
+    --adm-radius: 4px; --adm-nav-radius: 2px; --adm-btn-radius: 2px;
+    --adm-nav-font: "Orbitron", system-ui, sans-serif; --adm-nav-transform: uppercase; --adm-nav-tracking: .08em;
+    --adm-side-bg:
+        linear-gradient(rgb(168 85 247 / 0.07) 1px, transparent 1px) 0 0 / 100% 36px,
+        linear-gradient(90deg, rgb(168 85 247 / 0.07) 1px, transparent 1px) 0 0 / 36px 100%,
+        #0b0616;
+    --adm-side-edge: 1px solid rgb(168 85 247 / 0.5);
+    --adm-nav-active-bg: rgb(168 85 247 / 0.14); --adm-nav-active-color: #e9d5ff;
+    --adm-nav-active-shadow: inset 0 0 0 1px #a855f7, 0 0 18px -4px #a855f7;
+    --adm-card-border: 1px solid rgb(168 85 247 / 0.4); --adm-card-shadow: 0 0 22px -10px #a855f7;
+    --adm-header-edge: 1px solid rgb(168 85 247 / 0.5);
+}
+.dark .clubx-admin[data-admin-theme="neon-purple"] {
+    --glow: 168 85 247; --primary: #a855f7; --primary-dark: #9333ea; --primary-light: #c084fc; --brand-contrast: #0b0616;
+    --bg-primary: #08040f; --bg-secondary: #0d0718; --bg-card: #120a22; --bg-muted: #1b1031;
+    --border-light: rgb(168 85 247 / 0.22); --border-medium: rgb(168 85 247 / 0.40); --text-muted: #a99bc4;
+}
+.clubx-admin[data-admin-theme="neon-purple"] :is(h1, h2) { font-size: clamp(1.25rem, 2.2vw, 1.75rem); text-shadow: 0 0 18px rgb(168 85 247 / 0.45); }
+.clubx-admin[data-admin-theme="neon-purple"] .admin-nav-item { font-size: .72rem; }
+.clubx-admin[data-admin-theme="neon-purple"] .admin-cta { background: transparent; color: var(--primary); border: 1px solid var(--primary); box-shadow: 0 0 16px -2px var(--primary), inset 0 0 12px -6px var(--primary); text-shadow: 0 0 8px var(--primary); }
+.clubx-admin[data-admin-theme="neon-purple"] main {
+    background:
+        linear-gradient(rgb(168 85 247 / 0.06) 1px, transparent 1px) 0 0 / 44px 44px,
+        linear-gradient(90deg, rgb(168 85 247 / 0.06) 1px, transparent 1px) 0 0 / 44px 44px;
+}
+
+/* ── 2h. LUXURY CLUB — gold hairlines, serif, ivory & black ──────────────────────────────────── */
+.clubx-admin[data-admin-theme="classic-elegant"] {
+    --glow: 201 162 75; --primary: #a07d2c; --primary-dark: #7f6120; --primary-light: #c9a24b; --brand-contrast: #ffffff;
+    --bg-primary: #f8f4ea; --bg-secondary: #f0e9d9; --bg-card: #fffdf8; --bg-muted: #efe7d3;
+    --border-light: rgb(160 125 44 / 0.25); --border-medium: rgb(160 125 44 / 0.42);
+    --adm-radius: 0; --adm-nav-radius: 0; --adm-btn-radius: 0;
+    --adm-nav-font: "Playfair Display", Georgia, serif; --adm-nav-tracking: .02em;
+    --adm-side-bg: linear-gradient(180deg, #0f0c08, #080604); --adm-side-edge: 1px solid #c9a24b;
+    --adm-nav-active-bg: transparent; --adm-nav-active-color: #e3c47c;
+    --adm-nav-active-shadow: inset 0 1px 0 #c9a24b, inset 0 -1px 0 #c9a24b;
+    --adm-card-border: 1px solid var(--border-medium);
+    --adm-header-edge: 3px double #c9a24b;
+}
+.dark .clubx-admin[data-admin-theme="classic-elegant"] {
+    --glow: 201 162 75; --primary: #c9a24b; --primary-dark: #a07d2c; --primary-light: #e3c47c; --brand-contrast: #17130a;
+    --bg-primary: #0a0806; --bg-secondary: #100c08; --bg-card: #16110b; --bg-muted: #211a11;
+    --border-light: rgb(201 162 75 / 0.20); --border-medium: rgb(201 162 75 / 0.38); --text-muted: #a89a7c;
+}
+.clubx-admin[data-admin-theme="classic-elegant"] :is(.dash-card, .theme-panel) { outline: 1px solid rgb(201 162 75 / 0.28); outline-offset: -6px; }
+.clubx-admin[data-admin-theme="classic-elegant"] :is(h1, h2) { font-weight: 500; }
+.clubx-admin[data-admin-theme="classic-elegant"] .admin-cta { background: transparent; color: var(--primary); border: 1px solid var(--primary); box-shadow: none; }
+.clubx-admin[data-admin-theme="classic-elegant"] .admin-cta:hover { background: var(--primary); color: var(--brand-contrast); }
+.clubx-admin[data-admin-theme="classic-elegant"] main { background: radial-gradient(ellipse 60% 30% at 50% 0%, rgb(201 162 75 / 0.10), transparent 70%); }
+
+/* ── 2i. URBAN STREET — thick borders, hard shadows, yellow ──────────────────────────────────── */
+.clubx-admin[data-admin-theme="bold-black-yellow"] {
+    --glow: 250 204 21; --primary: #ca8a04; --primary-dark: #a16207; --primary-light: #facc15; --brand-contrast: #111113;
+    --bg-primary: #f4f4f5; --bg-secondary: #e9e9ec;
+    --adm-radius: 2px; --adm-nav-radius: 2px; --adm-btn-radius: 2px;
+    --adm-nav-font: "Archivo Black", Impact, sans-serif; --adm-nav-transform: uppercase; --adm-nav-tracking: .03em;
+    --adm-side-bg: radial-gradient(rgb(255 255 255 / 0.06) 1px, transparent 1.4px) 0 0 / 8px 8px, #0d0d0f;
+    --adm-side-edge: 4px solid #facc15;
+    --adm-nav-active-bg: #facc15; --adm-nav-active-color: #111113; --adm-nav-active-shadow: 3px 3px 0 #000;
+    --adm-card-border: 2px solid #111113; --adm-card-shadow: 5px 5px 0 #facc15;
+    --adm-header-edge: 4px solid #111113;
+}
+.dark .clubx-admin[data-admin-theme="bold-black-yellow"] {
+    --glow: 250 204 21; --primary: #facc15; --primary-dark: #eab308; --primary-light: #fde047; --brand-contrast: #111113;
+    --bg-primary: #0a0a0b; --bg-secondary: #111113; --bg-card: #17171a; --bg-muted: #232327;
+    --border-light: rgb(255 255 255 / 0.14); --border-medium: rgb(255 255 255 / 0.28); --text-muted: #a1a1aa;
+    --adm-card-border: 2px solid #3f3f46; --adm-card-shadow: 5px 5px 0 #facc15; --adm-header-edge: 4px solid #facc15;
+}
+.clubx-admin[data-admin-theme="bold-black-yellow"] :is(.dash-stat, .dash-hero) { border: var(--adm-card-border); box-shadow: var(--adm-card-shadow); }
+.clubx-admin[data-admin-theme="bold-black-yellow"] .admin-nav-item { font-size: .78rem; }
+.clubx-admin[data-admin-theme="bold-black-yellow"] .admin-cta { border: 2px solid #111113; box-shadow: 3px 3px 0 #111113; }
+.clubx-admin[data-admin-theme="bold-black-yellow"] main { background: radial-gradient(rgb(128 128 128 / 0.12) 1px, transparent 1.4px) 0 0 / 10px 10px; }
+
+/* ── 3. SMALL SCREENS + MOTION ───────────────────────────────────────────────────────────────── */
+@media (max-width: 1023px) {
+    /* The sidebar is a slide-in drawer here: keep its edge, drop wide hard shadows that cause sideways scroll */
+    .clubx-admin[data-admin-theme="bold-black-yellow"] :is(.dash-card, .theme-panel, .dash-stat, .dash-hero) { box-shadow: 3px 3px 0 #facc15; }
+    .clubx-admin[data-admin-theme="boxing-mma"] .admin-sidebar { box-shadow: none; }
+    .clubx-admin[data-admin-theme="energetic-red"] :is(.dash-stat, .dash-tile) { clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px)); }
+    .clubx-admin[data-admin-theme="neon-purple"] :is(h1, h2) { text-shadow: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .clubx-admin[data-admin-theme] * { transition-duration: .01ms !important; }
+}
